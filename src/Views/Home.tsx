@@ -172,7 +172,7 @@ const Home = () => {
         formData.append('file', rawPDF);
 
         try {
-            const response = await fetch('http://localhost:8000/parse-recipes', {
+            const response = await fetch('https://recipe-sorter-back.onrender.com/parse-recipes', {
                 method: 'POST',
                 body: formData,
                 // Do NOT manually set the "Content-Type" header;
