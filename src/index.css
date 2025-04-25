@@ -7,3 +7,11 @@
 } */
 
 @import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+#uploadButton {
+  border-color: '#10B981';
+  border-style: "solid";
+}

@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 
 
 
-const Home = () => {
+const NewHome = () => {
 
     const [rawPDF, setRawPDF] = useState(null)
-    const [loading, setLoading] = useState(false)
 
 
     // State for recipe data
@@ -166,31 +165,31 @@ const Home = () => {
     // Get available cooking methods
     const cookingMethods = ['All', 'Oven', 'Stovetop', 'Air Fryer', 'Blender', 'No Cook'];
 
+    // PDF Upload
     async function uploadPDF(rawPDF: File) {
         console.log("Uploading file:", rawPDF, typeof rawPDF);
         // Create a FormData object and append the PDF file.
         const formData = new FormData();
         formData.append('file', rawPDF);
 
-        // backend local 'http://127.0.0.1:8000/parse-recipes'
-        // frontend hosted 'https://recipe-sorter-back.onrender.com/parse-recipes'
-
         try {
+
+            // backend local 'http://127.0.0.1:8000/parse-recipes'
+            // frontend hosted 'https://recipe-sorter-back.onrender.com/parse-recipes'
             const response = await fetch('http://127.0.0.1:8000/parse-recipes', {
                 method: 'POST',
                 body: formData,
                 // Do NOT manually set the "Content-Type" header;
-                // the browser will automatically set it to "multipart/form-data" with a proper boundary.
+                // browser will automatically set it to "multipart/form-data" with a proper boundary.
             });
 
             if (!response.ok) {
                 throw new Error(`Server error: ${response.statusText}`);
             }
 
-            // Parse and log the JSON response from your backend.
+            // Parse and log the JSON response from backend
             const result = await response.json();
             console.log('Parsed Recipes:', result);
-            setLoading(false)
             setRecipes(result.recipes)
             return result;
         } catch (error) {
@@ -202,7 +201,6 @@ const Home = () => {
         e.preventDefault();
         if (rawPDF) {
             console.log("Selected file:", rawPDF);
-            setLoading(true)
             await uploadPDF(rawPDF);
         }
     };
@@ -214,24 +212,13 @@ const Home = () => {
 
             {/* File Upload */}
             <div className="bg-blue-50 p-4 rounded mb-6">
-                <form onSubmit={handleSubmit}>
-                    <div className='flex items-center'>
-                    <label for="myfile" className='bg-emerald-500 p-2 rounded-md mr-2'>Select a PDF file:</label>
-                    <input type="file" accept="application/pdf" id="myfile" name="file" onChange={(e) => { setRawPDF(e.target.files[0]) }} />
+                <form className='' onSubmit={handleSubmit}>
+                    <label for="myfile" className=''>Select a PDF file:</label>
+                    <input className='bg-emerald-500 p-2 rounded-md mr-2' type="file" accept="application/pdf" id="myfile" name="file" onChange={(e) => { setRawPDF(e.target.files[0]) }} />
 
-                    {
-                    loading ?
-                        <div className="flex items-center justify-center p-2">
-                            <div className="w-6 h-6 border-2 border-gray-300 border-t-emerald-500 border-solid rounded-full animate-spin"></div>
-                        </div> 
-                        :
-                        <button type='submit' className="bg-emerald-500 p-2 rounded-md mr-2">
-                            Export PDF
-                        </button>
-
-                    }
-
-                    </div>
+                    <button type='submit' id='uploadButton' className="p-2 rounded-md mr-2">
+                        Export PDF
+                    </button>
 
                 </form>
             </div>
@@ -557,4 +544,4 @@ const Home = () => {
     );
 };
 
-export default Home;
+export default NewHome;
