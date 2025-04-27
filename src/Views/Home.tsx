@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-
+const BACK_END_URL = import.meta.env.VITE_BACK_END_API_URL
 
 const Home = () => {
 
@@ -176,11 +176,12 @@ const Home = () => {
         // frontend hosted 'https://recipe-sorter-back.onrender.com/parse-recipes'
 
         try {
-            const response = await fetch('https://recipe-sorter-back.onrender.com/parse-recipes', {
+            const url = BACK_END_URL + '/parse-recipes'
+            const response = await fetch(url, {
                 method: 'POST',
                 body: formData,
                 // Do NOT manually set the "Content-Type" header;
-                // the browser will automatically set it to "multipart/form-data" with a proper boundary.
+                // browser will automatically set it to "multipart/form-data" with a proper boundary.
             });
 
             if (!response.ok) {
@@ -216,7 +217,21 @@ const Home = () => {
             <div className="bg-blue-50 p-4 rounded mb-6">
                 <form onSubmit={handleSubmit}>
                     <div className='flex items-center'>
-                    <label for="myfile" className='bg-emerald-500 p-2 rounded-md mr-2'>Select a PDF file:</label>
+                    <label for="myfile" className='"
+                            p-2 
+                            rounded-md 
+                            mr-2 
+                            bg-emerald-500 
+                            hover:bg-emerald-600 
+                            hover:shadow-lg 
+                            transform 
+                            hover:-translate-y-1 
+                            transition 
+                            duration-300 
+                            ease-in-out 
+                             
+                            font-semibold
+                        "'>Select a PDF file:</label>
                     <input type="file" accept="application/pdf" id="myfile" name="file" onChange={(e) => { setRawPDF(e.target.files[0]) }} />
 
                     {
@@ -225,9 +240,26 @@ const Home = () => {
                             <div className="w-6 h-6 border-2 border-gray-300 border-t-emerald-500 border-solid rounded-full animate-spin"></div>
                         </div> 
                         :
-                        <button type='submit' className="bg-emerald-500 p-2 rounded-md mr-2">
-                            Export PDF
-                        </button>
+                        <button
+                        type="submit"
+                        className="
+                            p-2 
+                            rounded-md 
+                            mr-2 
+                            bg-emerald-500 
+                            hover:bg-emerald-600 
+                            hover:shadow-lg 
+                            transform 
+                            hover:-translate-y-1 
+                            transition 
+                            duration-300 
+                            ease-in-out 
+                             
+                            font-semibold
+                        "
+                    >
+                        Export PDF
+                    </button>
 
                     }
 

@@ -11,7 +11,7 @@
 @tailwind components;
 @tailwind utilities;
 
-#uploadButton {
+/* #uploadButton {
   border-color: '#10B981';
   border-style: "solid";
-}
+} */
