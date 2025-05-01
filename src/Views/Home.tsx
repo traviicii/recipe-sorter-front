@@ -105,20 +105,20 @@ const Home = () => {
     const [filteredRecipes, setFilteredRecipes] = useState([]);
 
     // Filter ranges
-    const [proteinMin, setProteinMin] = useState(20);
-    const [proteinMax, setProteinMax] = useState(45);
-    const [caloriesMin, setCaloriesMin] = useState(200);
-    const [caloriesMax, setCaloriesMax] = useState(600);
-    const [fatMin, setFatMin] = useState(5);
-    const [fatMax, setFatMax] = useState(40);
+    const [proteinMin, setProteinMin] = useState(0);
+    const [proteinMax, setProteinMax] = useState(60);
+    const [caloriesMin, setCaloriesMin] = useState(0);
+    const [caloriesMax, setCaloriesMax] = useState(700);
+    const [fatMin, setFatMin] = useState(0);
+    const [fatMax, setFatMax] = useState(60);
     const [saturatedFatMin, setSaturatedFatMin] = useState(0);
-    const [saturatedFatMax, setSaturatedFatMax] = useState(15);
+    const [saturatedFatMax, setSaturatedFatMax] = useState(30);
     const [fiberMin, setFiberMin] = useState(0);
-    const [fiberMax, setFiberMax] = useState(15);
-    const [prepTimeMin, setPrepTimeMin] = useState(5);
+    const [fiberMax, setFiberMax] = useState(20);
+    const [prepTimeMin, setPrepTimeMin] = useState(0);
     const [prepTimeMax, setPrepTimeMax] = useState(60);
-    const [ingredientsMin, setIngredientsMin] = useState(3);
-    const [ingredientsMax, setIngredientsMax] = useState(12);
+    const [ingredientsMin, setIngredientsMin] = useState(0);
+    const [ingredientsMax, setIngredientsMax] = useState(15);
     const [cookingMethod, setCookingMethod] = useState('All');
 
     // Apply filters when they change
@@ -146,20 +146,20 @@ const Home = () => {
 
     // Reset all filters
     const resetFilters = () => {
-        setProteinMin(20);
-        setProteinMax(45);
-        setCaloriesMin(200);
-        setCaloriesMax(600);
-        setFatMin(5);
-        setFatMax(40);
+        setProteinMin(0);
+        setProteinMax(60);
+        setCaloriesMin(0);
+        setCaloriesMax(700);
+        setFatMin(0);
+        setFatMax(60);
         setSaturatedFatMin(0);
-        setSaturatedFatMax(15);
+        setSaturatedFatMax(30);
         setFiberMin(0);
-        setFiberMax(15);
-        setPrepTimeMin(5);
+        setFiberMax(20);
+        setPrepTimeMin(0);
         setPrepTimeMax(60);
-        setIngredientsMin(3);
-        setIngredientsMax(12);
+        setIngredientsMin(0);
+        setIngredientsMax(15);
         setCookingMethod('All');
     };
 
