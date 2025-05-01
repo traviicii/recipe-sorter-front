@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
+import FilterSection from '../Components/filterSection';
 
 
 
 const NewHome = () => {
 
     const [rawPDF, setRawPDF] = useState(null)
+    const [loading, setLoading] = useState(false)
+
+    const [sortKey, setSortKey] = useState('protein');
+    const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
 
 
     // State for recipe data
@@ -104,20 +109,20 @@ const NewHome = () => {
     const [filteredRecipes, setFilteredRecipes] = useState([]);
 
     // Filter ranges
-    const [proteinMin, setProteinMin] = useState(20);
-    const [proteinMax, setProteinMax] = useState(45);
-    const [caloriesMin, setCaloriesMin] = useState(200);
-    const [caloriesMax, setCaloriesMax] = useState(600);
-    const [fatMin, setFatMin] = useState(5);
-    const [fatMax, setFatMax] = useState(40);
+    const [proteinMin, setProteinMin] = useState(0);
+    const [proteinMax, setProteinMax] = useState(60);
+    const [caloriesMin, setCaloriesMin] = useState(0);
+    const [caloriesMax, setCaloriesMax] = useState(700);
+    const [fatMin, setFatMin] = useState(0);
+    const [fatMax, setFatMax] = useState(60);
     const [saturatedFatMin, setSaturatedFatMin] = useState(0);
-    const [saturatedFatMax, setSaturatedFatMax] = useState(15);
+    const [saturatedFatMax, setSaturatedFatMax] = useState(30);
     const [fiberMin, setFiberMin] = useState(0);
-    const [fiberMax, setFiberMax] = useState(15);
-    const [prepTimeMin, setPrepTimeMin] = useState(5);
+    const [fiberMax, setFiberMax] = useState(20);
+    const [prepTimeMin, setPrepTimeMin] = useState(0);
     const [prepTimeMax, setPrepTimeMax] = useState(60);
-    const [ingredientsMin, setIngredientsMin] = useState(3);
-    const [ingredientsMax, setIngredientsMax] = useState(12);
+    const [ingredientsMin, setIngredientsMin] = useState(0);
+    const [ingredientsMax, setIngredientsMax] = useState(15);
     const [cookingMethod, setCookingMethod] = useState('All');
 
     // Apply filters when they change
@@ -131,6 +136,16 @@ const NewHome = () => {
             const prepTimeMatch = recipe.prepTime >= prepTimeMin && recipe.prepTime <= prepTimeMax;
             const ingredientsMatch = recipe.ingredientCount >= ingredientsMin && recipe.ingredientCount <= ingredientsMax;
             const methodMatch = cookingMethod === 'All' || recipe.cookingMethod === cookingMethod;
+
+            filtered.sort((a, b) => {
+                if (sortOrder === 'asc') {
+                    return a[sortKey] - b[sortKey];
+                } else {
+                    return b[sortKey] - a[sortKey];
+                }
+            });
+
+            setFilteredRecipes(filtered);
 
             return proteinMatch && caloriesMatch && fatMatch && satFatMatch &&
                 fiberMatch && prepTimeMatch && ingredientsMatch && methodMatch;
@@ -165,18 +180,18 @@ const NewHome = () => {
     // Get available cooking methods
     const cookingMethods = ['All', 'Oven', 'Stovetop', 'Air Fryer', 'Blender', 'No Cook'];
 
-    // PDF Upload
     async function uploadPDF(rawPDF: File) {
         console.log("Uploading file:", rawPDF, typeof rawPDF);
         // Create a FormData object and append the PDF file.
         const formData = new FormData();
         formData.append('file', rawPDF);
 
-        try {
+        // backend local 'http://127.0.0.1:8000/parse-recipes'
+        // frontend hosted 'https://recipe-sorter-back.onrender.com/parse-recipes'
 
-            // backend local 'http://127.0.0.1:8000/parse-recipes'
-            // frontend hosted 'https://recipe-sorter-back.onrender.com/parse-recipes'
-            const response = await fetch('http://127.0.0.1:8000/parse-recipes', {
+        try {
+            const url = BACK_END_URL + '/parse-recipes'
+            const response = await fetch(url, {
                 method: 'POST',
                 body: formData,
                 // Do NOT manually set the "Content-Type" header;
@@ -187,9 +202,10 @@ const NewHome = () => {
                 throw new Error(`Server error: ${response.statusText}`);
             }
 
-            // Parse and log the JSON response from backend
+            // Parse and log the JSON response from your backend.
             const result = await response.json();
             console.log('Parsed Recipes:', result);
+            setLoading(false)
             setRecipes(result.recipes)
             return result;
         } catch (error) {
@@ -201,33 +217,116 @@ const NewHome = () => {
         e.preventDefault();
         if (rawPDF) {
             console.log("Selected file:", rawPDF);
+            setLoading(true)
             await uploadPDF(rawPDF);
         }
     };
 
     return (
         <div >
-            <button
-                type="submit"
-                id="uploadButton"
-                className="
-                    p-2 
-                    rounded-md 
-                    mr-2 
-                    bg-emerald-500 
-                    hover:bg-emerald-600 
-                    hover:shadow-lg 
-                    transform 
-                    hover:-translate-y-1 
-                    transition 
-                    duration-300 
-                    ease-in-out 
-                    text-white 
-                    font-semibold
-                "
-            >
-                Export PDF
-            </button>
+            <div className="bg-white shadow rounded-lg p-6 mb-6">
+                <div className="flex justify-between mb-4">
+                    <h2 className="text-xl font-bold">Filters</h2>
+                    <button
+                        onClick={resetFilters}
+                        className="text-blue-600 hover:underline"
+                    >
+                        Reset All
+                    </button>
+                </div>
+
+                <FilterSection title="Protein">
+                    {/* Protein min/max inputs */}
+                    <div>
+                        <div className="flex justify-between mb-1">
+                            <label className="font-medium">Protein</label>
+                            <div>
+                                <input
+                                    type="number"
+                                    value={proteinMin}
+                                    onChange={(e) => setProteinMin(Number(e.target.value))}
+                                    className="w-16 text-center border rounded"
+                                />
+                                <span> - </span>
+                                <input
+                                    type="number"
+                                    value={proteinMax}
+                                    onChange={(e) => setProteinMax(Number(e.target.value))}
+                                    className="w-16 text-center border rounded"
+                                />
+                                <span> g</span>
+                            </div>
+                        </div>
+                        <div className="bg-gray-200 h-2 rounded-full">
+                            <div
+                                className="bg-green-500 h-2 rounded-full"
+                                style={{
+                                    width: `${(proteinMax - proteinMin) / 0.6}%`,
+                                    marginLeft: `${proteinMin / 0.6}%`
+                                }}
+                            ></div>
+                        </div>
+                    </div>
+                </FilterSection>
+
+                <FilterSection title="Calories">
+                    {/* Calories min/max inputs */}
+                </FilterSection>
+
+                <FilterSection title="Fat">
+                    {/* Fat min/max inputs */}
+                </FilterSection>
+
+                <FilterSection title="Saturated Fat">
+                    {/* Saturated Fat min/max inputs */}
+                </FilterSection>
+
+                <FilterSection title="Fiber">
+                    {/* Fiber min/max inputs */}
+                </FilterSection>
+
+                <FilterSection title="Prep Time">
+                    {/* Prep Time min/max inputs */}
+                </FilterSection>
+
+                <FilterSection title="# of Ingredients">
+                    {/* Ingredients min/max inputs */}
+                </FilterSection>
+
+                <FilterSection title="Cooking Method">
+                    {/* Cooking Method buttons */}
+                </FilterSection>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 mb-4">
+                <div className="flex items-center">
+                    <label className="mr-2 font-medium">Sort by:</label>
+                    <select
+                        className="border rounded p-1"
+                        value={sortKey}
+                        onChange={(e) => setSortKey(e.target.value)}
+                    >
+                        <option value="protein">Protein</option>
+                        <option value="calories">Calories</option>
+                        <option value="fat">Fat</option>
+                        <option value="fiber">Fiber</option>
+                        <option value="prepTime">Prep Time</option>
+                        <option value="ingredientCount"># of Ingredients</option>
+                    </select>
+                </div>
+
+                <div className="flex items-center">
+                    <label className="mr-2 font-medium">Order:</label>
+                    <select
+                        className="border rounded p-1"
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value)}
+                    >
+                        <option value="desc">High → Low</option>
+                        <option value="asc">Low → High</option>
+                    </select>
+                </div>
+            </div>
         </div>
     );
 };
