@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useDropzone } from 'react-dropzone';
 
 const BACK_END_URL = import.meta.env.VITE_BACK_END_API_URL
 
@@ -104,6 +105,19 @@ const Home = () => {
     // Filtered recipes
     const [filteredRecipes, setFilteredRecipes] = useState([]);
 
+    // Toggle Filters
+    const [enableProtein, setEnableProtein] = useState(true);
+    const [enableCalories, setEnableCalories] = useState(true);
+    const [enableFat, setEnableFat] = useState(true);
+    const [enableSaturatedFat, setEnableSaturatedFat] = useState(true);
+    const [enableFiber, setEnableFiber] = useState(true);
+    const [enablePrepTime, setEnablePrepTime] = useState(true);
+    const [enableIngredients, setEnableIngredients] = useState(true);
+
+    // Sort Criteria
+    const [sortField, setSortField] = useState('protein');
+    const [sortDirection, setSortDirection] = useState('desc');
+
     // Filter ranges
     const [proteinMin, setProteinMin] = useState(0);
     const [proteinMax, setProteinMax] = useState(60);
@@ -124,24 +138,32 @@ const Home = () => {
     // Apply filters when they change
     useEffect(() => {
         const filtered = recipes.filter(recipe => {
-            const proteinMatch = recipe.protein >= proteinMin && recipe.protein <= proteinMax;
-            const caloriesMatch = recipe.calories >= caloriesMin && recipe.calories <= caloriesMax;
-            const fatMatch = recipe.fat >= fatMin && recipe.fat <= fatMax;
-            const satFatMatch = recipe.saturatedFat >= saturatedFatMin && recipe.saturatedFat <= saturatedFatMax;
-            const fiberMatch = recipe.fiber >= fiberMin && recipe.fiber <= fiberMax;
-            const prepTimeMatch = recipe.prepTime >= prepTimeMin && recipe.prepTime <= prepTimeMax;
-            const ingredientsMatch = recipe.ingredientCount >= ingredientsMin && recipe.ingredientCount <= ingredientsMax;
+            const proteinMatch = !enableProtein || recipe.protein >= proteinMin && recipe.protein <= proteinMax;
+            const caloriesMatch = !enableCalories || recipe.calories >= caloriesMin && recipe.calories <= caloriesMax;
+            const fatMatch = !enableFat || recipe.fat >= fatMin && recipe.fat <= fatMax;
+            const satFatMatch = !enableSaturatedFat || recipe.saturatedFat >= saturatedFatMin && recipe.saturatedFat <= saturatedFatMax;
+            const fiberMatch = !enableFiber || recipe.fiber >= fiberMin && recipe.fiber <= fiberMax;
+            const prepTimeMatch = !enablePrepTime || recipe.prepTime >= prepTimeMin && recipe.prepTime <= prepTimeMax;
+            const ingredientsMatch = !enableIngredients || recipe.ingredientCount >= ingredientsMin && recipe.ingredientCount <= ingredientsMax;
             const methodMatch = cookingMethod === 'All' || recipe.cookingMethod === cookingMethod;
 
             return proteinMatch && caloriesMatch && fatMatch && satFatMatch &&
                 fiberMatch && prepTimeMatch && ingredientsMatch && methodMatch;
         });
 
-        setFilteredRecipes(filtered);
+        const sorted = [...filtered].sort((a, b) => {
+            if (sortDirection === 'asc') return a[sortField] - b[sortField];
+            return b[sortField] - a[sortField];
+        });
+
+        setFilteredRecipes(sorted);
     }, [
         recipes, proteinMin, proteinMax, caloriesMin, caloriesMax,
         fatMin, fatMax, saturatedFatMin, saturatedFatMax, fiberMin,
-        fiberMax, prepTimeMin, prepTimeMax, ingredientsMin, ingredientsMax, cookingMethod
+        fiberMax, prepTimeMin, prepTimeMax, ingredientsMin, ingredientsMax,
+        cookingMethod, sortDirection, sortField,
+        enableProtein, enableCalories, enableFat, enableSaturatedFat,
+        enableFiber, enablePrepTime, enableIngredients
     ]);
 
     // Reset all filters
@@ -217,12 +239,12 @@ const Home = () => {
             <div className="bg-blue-50 p-4 rounded mb-6">
                 <form onSubmit={handleSubmit}>
                     <div className='flex items-center'>
-                    <label for="myfile" className='"
+                        <label htmlFor="myfile" className='"
                             p-2 
                             rounded-md 
                             mr-2 
-                            bg-emerald-500 
-                            hover:bg-emerald-600 
+                            bg-green-500
+                            hover:bg-green-600
                             hover:shadow-lg 
                             transform 
                             hover:-translate-y-1 
@@ -232,22 +254,22 @@ const Home = () => {
                              
                             font-semibold
                         "'>Select a PDF file:</label>
-                    <input type="file" accept="application/pdf" id="myfile" name="file" onChange={(e) => { setRawPDF(e.target.files[0]) }} />
+                        <input type="file" accept="application/pdf" id="myfile" name="file" onChange={(e) => { setRawPDF(e.target.files[0]) }} />
 
-                    {
-                    loading ?
-                        <div className="flex items-center justify-center p-2">
-                            <div className="w-6 h-6 border-2 border-gray-300 border-t-emerald-500 border-solid rounded-full animate-spin"></div>
-                        </div> 
-                        :
-                        <button
-                        type="submit"
-                        className="
+                        {
+                            loading ?
+                                <div className="flex items-center justify-center p-2">
+                                    <div className="w-6 h-6 border-2 border-gray-300 border-t-green-500 border-solid rounded-full animate-spin"></div>
+                                </div>
+                                :
+                                <button
+                                    type="submit"
+                                    className="
                             p-2 
                             rounded-md 
                             mr-2 
-                            bg-emerald-500 
-                            hover:bg-emerald-600 
+                            bg-green-500 
+                            hover:bg-green-600 
                             hover:shadow-lg 
                             transform 
                             hover:-translate-y-1 
@@ -257,11 +279,11 @@ const Home = () => {
                              
                             font-semibold
                         "
-                    >
-                        Export PDF
-                    </button>
+                                >
+                                    Export PDF
+                                </button>
 
-                    }
+                        }
 
                     </div>
 
@@ -282,9 +304,15 @@ const Home = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Protein Filter */}
-                    <div>
-                        <div className="flex justify-between mb-1">
-                            <label className="font-medium">Protein</label>
+                    <div >
+                        <div className='flex mb-1 justify-between'>
+                            <div className="flex">
+                                <div >
+                                    <input type="checkbox" className='mr-2' checked={enableProtein} onChange={() => setEnableProtein(!enableProtein)} />
+                                </div>
+                                <label className="font-medium">Protein</label>
+
+                            </div>
                             <div>
                                 <input
                                     type="number"
@@ -315,8 +343,13 @@ const Home = () => {
 
                     {/* Calories Filter */}
                     <div>
+
                         <div className="flex justify-between mb-1">
-                            <label className="font-medium">Calories</label>
+                            <div className='flex'>
+                                <input type="checkbox" className='mr-2' checked={enableCalories} onChange={() => setEnableCalories(!enableCalories)} />
+                                <label className="font-medium mr-2">Calories</label>
+
+                            </div>
                             <div>
                                 <input
                                     type="number"
@@ -347,7 +380,11 @@ const Home = () => {
                     {/* Fat Filter */}
                     <div>
                         <div className="flex justify-between mb-1">
-                            <label className="font-medium">Fat</label>
+                            <div className='flex'>
+
+                                <input type="checkbox" className='mr-2' checked={enableFat} onChange={() => setEnableFat(!enableFat)} />
+                                <label className="font-medium">Fat</label>
+                            </div>
                             <div>
                                 <input
                                     type="number"
@@ -379,7 +416,10 @@ const Home = () => {
                     {/* Saturated Fat Filter */}
                     <div>
                         <div className="flex justify-between mb-1">
-                            <label className="font-medium">Saturated Fat</label>
+                            <div>
+                                <input type="checkbox" className='mr-2' checked={enableSaturatedFat} onChange={() => setEnableSaturatedFat(!enableSaturatedFat)} />
+                                <label className="font-medium">Saturated Fat</label>
+                            </div>
                             <div>
                                 <input
                                     type="number"
@@ -411,7 +451,11 @@ const Home = () => {
                     {/* Fiber Filter */}
                     <div>
                         <div className="flex justify-between mb-1">
-                            <label className="font-medium">Fiber</label>
+                            <div>
+                                <input type="checkbox" className='mr-2' checked={enableFiber} onChange={() => setEnableFiber(!enableFiber)} />
+                                <label className="font-medium">Fiber</label>
+
+                            </div>
                             <div>
                                 <input
                                     type="number"
@@ -443,7 +487,10 @@ const Home = () => {
                     {/* Prep Time Filter */}
                     <div>
                         <div className="flex justify-between mb-1">
-                            <label className="font-medium">Prep Time</label>
+                            <div>
+                                <input type="checkbox" className='mr-2' checked={enablePrepTime} onChange={() => setEnablePrepTime(!enablePrepTime)} />
+                                <label className="font-medium">Prep Time</label>
+                            </div>
                             <div>
                                 <input
                                     type="number"
@@ -475,7 +522,10 @@ const Home = () => {
                     {/* Ingredients Filter */}
                     <div>
                         <div className="flex justify-between mb-1">
-                            <label className="font-medium">Ingredients</label>
+                            <div>
+                                <input type="checkbox" className='mr-2' checked={enableIngredients} onChange={() => setEnableIngredients(!enableIngredients)} />
+                                <label className="font-medium">Ingredients</label>
+                            </div>
                             <div>
                                 <input
                                     type="number"
@@ -505,19 +555,34 @@ const Home = () => {
                 </div>
 
                 {/* Cooking Method */}
-                <div className="mt-6">
-                    <h3 className="font-medium mb-2">Cooking Method</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {cookingMethods.map(method => (
-                            <button
-                                key={method}
-                                className={`px-3 py-1 rounded-full text-sm ${cookingMethod === method ? 'bg-green-500 text-white' : 'bg-gray-100'}`}
-                                onClick={() => setCookingMethod(method)}
-                            >
-                                {method}
-                            </button>
-                        ))}
+                <div className="flex justify-between content-end mt-6">
+                    <div>
+                        <h3 className="font-medium mb-2">Cooking Method</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {cookingMethods.map(method => (
+                                <button
+                                    key={method}
+                                    className={`px-3 py-1 rounded-full text-sm ${cookingMethod === method ? 'bg-green-500 text-white' : 'bg-gray-100'}`}
+                                    onClick={() => setCookingMethod(method)}
+                                >
+                                    {method}
+                                </button>
+                            ))}
+                        </div>
                     </div>
+
+                    {/* Sorting */}
+                    <div>
+                        <select className='mr-4 rounded-lg p-1 bg-green-500' value={sortField} onChange={e => setSortField(e.target.value)}>
+                            <option value="protein">Protein</option>
+                            <option value="calories">Calories</option>
+                            <option value="fat">Fat</option>
+                        </select>
+                        <button className='rounded-lg p-1 bg-green-500' onClick={() => setSortDirection(dir => dir === 'asc' ? 'desc' : 'asc')}>
+                            Toggle ↑↓
+                        </button>
+                    </div>
+
                 </div>
 
                 {/* Results Count */}
