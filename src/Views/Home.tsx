@@ -28,6 +28,7 @@ import type {
 const BACK_END_URL = import.meta.env.VITE_BACK_END_API_URL;
 const TRANSIENT_STATUS_CODES = new Set([502, 503, 504]);
 const RETRY_DELAYS_MS = [500, 1500, 3000];
+const POLL_INTERVAL_MS = 3000;
 
 type LocationState = {
     reused?: boolean;
@@ -95,6 +96,7 @@ export default function Home() {
     const [searchParams] = useSearchParams();
     const locationState = (location.state as LocationState | null) ?? null;
     const pollRef = useRef<number | null>(null);
+    const pollInFlightRef = useRef(false);
 
     const [rawPDF, setRawPDF] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
@@ -197,6 +199,7 @@ export default function Home() {
                 window.clearInterval(pollRef.current);
                 pollRef.current = null;
             }
+            pollInFlightRef.current = false;
         };
 
         const syncSelectionWithAvailableCollections = (nextCollections: CollectionSummary[]) => {
@@ -249,6 +252,8 @@ export default function Home() {
                 setErrorMessage('Failed to load your recipe library.');
                 stopPolling();
                 return false;
+            } finally {
+                pollInFlightRef.current = false;
             }
         };
 
@@ -259,8 +264,12 @@ export default function Home() {
             }
             stopPolling();
             pollRef.current = window.setInterval(() => {
+                if (pollInFlightRef.current) {
+                    return;
+                }
+                pollInFlightRef.current = true;
                 void fetchLibraryState();
-            }, 1000);
+            }, POLL_INTERVAL_MS);
         })();
 
         return () => {
