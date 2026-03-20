@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
-import CollectionHeader from '../components/CollectionHeader';
-import CollectionScopePanel from '../components/CollectionScopePanel';
-import EmptyState from '../components/EmptyState';
-import FilterRail from '../components/FilterRail';
-import ProgressPanel from '../components/ProgressPanel';
-import RecipeGrid from '../components/RecipeGrid';
-import ResultsToolbar from '../components/ResultsToolbar';
-import UploadPanel from '../components/UploadPanel';
+import CollectionHeader from '../Components/CollectionHeader';
+import CollectionScopePanel from '../Components/CollectionScopePanel';
+import EmptyState from '../Components/EmptyState';
+import FilterRail from '../Components/FilterRail';
+import ProgressPanel from '../Components/ProgressPanel';
+import RecipeGrid from '../Components/RecipeGrid';
+import ResultsToolbar from '../Components/ResultsToolbar';
+import UploadPanel from '../Components/UploadPanel';
 import {
     defaultFilters,
     defaultSortMode,
