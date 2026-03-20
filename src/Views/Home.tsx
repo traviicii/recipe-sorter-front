@@ -1,657 +1,438 @@
-import { useState, useEffect } from 'react';
-import { useDropzone } from 'react-dropzone';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
-const BACK_END_URL = import.meta.env.VITE_BACK_END_API_URL
+import CollectionHeader from '../components/CollectionHeader';
+import CollectionScopePanel from '../components/CollectionScopePanel';
+import EmptyState from '../components/EmptyState';
+import FilterRail from '../components/FilterRail';
+import ProgressPanel from '../components/ProgressPanel';
+import RecipeGrid from '../components/RecipeGrid';
+import ResultsToolbar from '../components/ResultsToolbar';
+import UploadPanel from '../components/UploadPanel';
+import {
+    defaultFilters,
+    defaultSortMode,
+    filterRecipes,
+    getSelectedCollections,
+    quickPresets,
+    sortRecipes,
+} from '../lib/recipe-sorter';
+import type {
+    CollectionSummary,
+    FilterState,
+    QuickPresetId,
+    Recipe,
+    SortMode,
+} from '../types/recipe-sorter';
 
-const Home = () => {
+const BACK_END_URL = import.meta.env.VITE_BACK_END_API_URL;
 
-    const [rawPDF, setRawPDF] = useState(null)
-    const [loading, setLoading] = useState(false)
+type LocationState = {
+    reused?: boolean;
+    uploadedCollectionId?: string;
+    uploadedCollectionName?: string;
+};
 
+export default function Home() {
+    const { collectionId } = useParams();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const [searchParams] = useSearchParams();
+    const locationState = (location.state as LocationState | null) ?? null;
+    const pollRef = useRef<number | null>(null);
 
-    // State for recipe data
-    const [recipes, setRecipes] = useState([])
-    // const [recipes] = useState([
-    //     {
-    //         title: "Harissa Spiced Meatballs",
-    //         prepTime: 30,
-    //         calories: 543,
-    //         protein: 30,
-    //         fat: 27,
-    //         saturatedFat: 7,
-    //         fiber: 3,
-    //         ingredientCount: 10,
-    //         cookingMethod: "Oven"
-    //     },
-    //     {
-    //         title: "Sofrito Chicken Sandwich",
-    //         prepTime: 50,
-    //         calories: 570,
-    //         protein: 36,
-    //         fat: 20,
-    //         saturatedFat: 3,
-    //         fiber: 4,
-    //         ingredientCount: 9,
-    //         cookingMethod: "Stovetop"
-    //     },
-    //     {
-    //         title: "One Pan Burrito Casserole",
-    //         prepTime: 45,
-    //         calories: 498,
-    //         protein: 33,
-    //         fat: 27,
-    //         saturatedFat: 12,
-    //         fiber: 5,
-    //         ingredientCount: 7,
-    //         cookingMethod: "Oven"
-    //     },
-    //     {
-    //         title: "Matar Paneer",
-    //         prepTime: 20,
-    //         calories: 508,
-    //         protein: 35,
-    //         fat: 33,
-    //         saturatedFat: 21,
-    //         fiber: 6,
-    //         ingredientCount: 11,
-    //         cookingMethod: "Stovetop"
-    //     },
-    //     {
-    //         title: "Easy Beef Enchiladas",
-    //         prepTime: 45,
-    //         calories: 640,
-    //         protein: 31,
-    //         fat: 37,
-    //         saturatedFat: 17,
-    //         fiber: 9,
-    //         ingredientCount: 6,
-    //         cookingMethod: "Oven"
-    //     },
-    //     {
-    //         title: "Air Fryer Salami Pizza",
-    //         prepTime: 20,
-    //         calories: 515,
-    //         protein: 24,
-    //         fat: 20,
-    //         saturatedFat: 10,
-    //         fiber: 3,
-    //         ingredientCount: 5,
-    //         cookingMethod: "Air Fryer"
-    //     },
-    //     {
-    //         title: "Chocolate Smoothie",
-    //         prepTime: 5,
-    //         calories: 558,
-    //         protein: 33,
-    //         fat: 24,
-    //         saturatedFat: 3,
-    //         fiber: 20,
-    //         ingredientCount: 10,
-    //         cookingMethod: "Blender"
-    //     },
-    //     {
-    //         title: "Overnight Oats",
-    //         prepTime: 10,
-    //         calories: 445,
-    //         protein: 32,
-    //         fat: 17,
-    //         saturatedFat: 3,
-    //         fiber: 7,
-    //         ingredientCount: 8,
-    //         cookingMethod: "No Cook"
-    //     }
-    // ]);
+    const [rawPDF, setRawPDF] = useState<File | null>(null);
+    const [submitting, setSubmitting] = useState(false);
+    const [clearingLibrary, setClearingLibrary] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [infoMessage, setInfoMessage] = useState<string | null>(null);
+    const [collections, setCollections] = useState<CollectionSummary[]>([]);
+    const [recipes, setRecipes] = useState<Recipe[]>([]);
+    const [progressCollectionId, setProgressCollectionId] = useState<string | null>(null);
+    const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[] | null>(null);
+    const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
+    const [sortMode, setSortMode] = useState<SortMode>(defaultSortMode);
+    const [activePreset, setActivePreset] = useState<QuickPresetId | null>('high-protein');
+    const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-    // Filtered recipes
-    const [filteredRecipes, setFilteredRecipes] = useState([]);
+    const selectedCollections = useMemo(
+        () => getSelectedCollections(collections, selectedCollectionIds),
+        [collections, selectedCollectionIds]
+    );
+    const usableRecipes = useMemo(
+        () => recipes.filter((recipe) => recipe.macroStatus !== 'failed'),
+        [recipes]
+    );
+    const visibleRecipes = useMemo(
+        () => sortRecipes(filterRecipes(recipes, filters), sortMode),
+        [recipes, filters, sortMode]
+    );
+    const totalLibraryRecipes = useMemo(
+        () => collections.reduce((sum, collection) => sum + collection.parsedRecipes, 0),
+        [collections]
+    );
+    const progressCollection = useMemo(() => {
+        if (progressCollectionId) {
+            return collections.find((collection) => collection.id === progressCollectionId) ?? null;
+        }
+        return collections.find(
+            (collection) => collection.status === 'queued' || collection.status === 'processing'
+        ) ?? null;
+    }, [collections, progressCollectionId]);
 
-    // Toggle Filters
-    const [enableProtein, setEnableProtein] = useState(true);
-    const [enableCalories, setEnableCalories] = useState(true);
-    const [enableFat, setEnableFat] = useState(true);
-    const [enableSaturatedFat, setEnableSaturatedFat] = useState(true);
-    const [enableFiber, setEnableFiber] = useState(true);
-    const [enablePrepTime, setEnablePrepTime] = useState(true);
-    const [enableIngredients, setEnableIngredients] = useState(true);
-
-    // Sort Criteria
-    const [sortField, setSortField] = useState('protein');
-    const [sortDirection, setSortDirection] = useState('desc');
-
-    // Filter ranges
-    const [proteinMin, setProteinMin] = useState(0);
-    const [proteinMax, setProteinMax] = useState(60);
-    const [caloriesMin, setCaloriesMin] = useState(0);
-    const [caloriesMax, setCaloriesMax] = useState(700);
-    const [fatMin, setFatMin] = useState(0);
-    const [fatMax, setFatMax] = useState(60);
-    const [saturatedFatMin, setSaturatedFatMin] = useState(0);
-    const [saturatedFatMax, setSaturatedFatMax] = useState(30);
-    const [fiberMin, setFiberMin] = useState(0);
-    const [fiberMax, setFiberMax] = useState(20);
-    const [prepTimeMin, setPrepTimeMin] = useState(0);
-    const [prepTimeMax, setPrepTimeMax] = useState(60);
-    const [ingredientsMin, setIngredientsMin] = useState(0);
-    const [ingredientsMax, setIngredientsMax] = useState(15);
-    const [cookingMethod, setCookingMethod] = useState('All');
-
-    // Apply filters when they change
     useEffect(() => {
-        const filtered = recipes.filter(recipe => {
-            const proteinMatch = !enableProtein || recipe.protein >= proteinMin && recipe.protein <= proteinMax;
-            const caloriesMatch = !enableCalories || recipe.calories >= caloriesMin && recipe.calories <= caloriesMax;
-            const fatMatch = !enableFat || recipe.fat >= fatMin && recipe.fat <= fatMax;
-            const satFatMatch = !enableSaturatedFat || recipe.saturatedFat >= saturatedFatMin && recipe.saturatedFat <= saturatedFatMax;
-            const fiberMatch = !enableFiber || recipe.fiber >= fiberMin && recipe.fiber <= fiberMax;
-            const prepTimeMatch = !enablePrepTime || recipe.prepTime >= prepTimeMin && recipe.prepTime <= prepTimeMax;
-            const ingredientsMatch = !enableIngredients || recipe.ingredientCount >= ingredientsMin && recipe.ingredientCount <= ingredientsMax;
-            const methodMatch = cookingMethod === 'All' || recipe.cookingMethod === cookingMethod;
+        if (collectionId) {
+            setSelectedCollectionIds([collectionId]);
+            return;
+        }
+        const queryIds = (searchParams.get('collections') || '')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean);
+        setSelectedCollectionIds(queryIds.length > 0 ? queryIds : null);
+    }, [collectionId, searchParams]);
 
-            return proteinMatch && caloriesMatch && fatMatch && satFatMatch &&
-                fiberMatch && prepTimeMatch && ingredientsMatch && methodMatch;
-        });
+    useEffect(() => {
+        if (!locationState) return;
+        if (locationState.uploadedCollectionId) {
+            setProgressCollectionId(locationState.uploadedCollectionId);
+        }
+        if (locationState.uploadedCollectionName) {
+            setInfoMessage(
+                locationState.reused
+                    ? `"${locationState.uploadedCollectionName}" is already in your library.`
+                    : `Added "${locationState.uploadedCollectionName}" to your library.`
+            );
+        } else if (locationState.reused) {
+            setInfoMessage('Opened an existing collection from your library.');
+        }
+    }, [location.key, locationState]);
 
-        const sorted = [...filtered].sort((a, b) => {
-            if (sortDirection === 'asc') return a[sortField] - b[sortField];
-            return b[sortField] - a[sortField];
-        });
+    useEffect(() => {
+        return () => {
+            if (pollRef.current) {
+                window.clearInterval(pollRef.current);
+            }
+        };
+    }, []);
 
-        setFilteredRecipes(sorted);
-    }, [
-        recipes, proteinMin, proteinMax, caloriesMin, caloriesMax,
-        fatMin, fatMax, saturatedFatMin, saturatedFatMax, fiberMin,
-        fiberMax, prepTimeMin, prepTimeMax, ingredientsMin, ingredientsMax,
-        cookingMethod, sortDirection, sortField,
-        enableProtein, enableCalories, enableFat, enableSaturatedFat,
-        enableFiber, enablePrepTime, enableIngredients
-    ]);
+    useEffect(() => {
+        if (progressCollectionId && !collections.some((collection) => collection.id === progressCollectionId)) {
+            setProgressCollectionId(null);
+            return;
+        }
+        if (!progressCollectionId) {
+            const activeCollection = collections.find(
+                (collection) => collection.status === 'queued' || collection.status === 'processing'
+            );
+            if (activeCollection) {
+                setProgressCollectionId(activeCollection.id);
+            }
+        }
+    }, [collections, progressCollectionId]);
 
-    // Reset all filters
-    const resetFilters = () => {
-        setProteinMin(0);
-        setProteinMax(60);
-        setCaloriesMin(0);
-        setCaloriesMax(700);
-        setFatMin(0);
-        setFatMax(60);
-        setSaturatedFatMin(0);
-        setSaturatedFatMax(30);
-        setFiberMin(0);
-        setFiberMax(20);
-        setPrepTimeMin(0);
-        setPrepTimeMax(60);
-        setIngredientsMin(0);
-        setIngredientsMax(15);
-        setCookingMethod('All');
+    useEffect(() => {
+        let active = true;
+        const query = selectedCollectionIds && selectedCollectionIds.length > 0
+            ? `?collectionIds=${selectedCollectionIds.join(',')}`
+            : '';
+
+        const stopPolling = () => {
+            if (pollRef.current) {
+                window.clearInterval(pollRef.current);
+                pollRef.current = null;
+            }
+        };
+
+        const syncSelectionWithAvailableCollections = (nextCollections: CollectionSummary[]) => {
+            if (!selectedCollectionIds || selectedCollectionIds.length === 0) {
+                return;
+            }
+
+            const availableIds = new Set(nextCollections.map((collection) => collection.id));
+            const remainingSelected = selectedCollectionIds.filter((id) => availableIds.has(id));
+            if (remainingSelected.length === selectedCollectionIds.length) {
+                return;
+            }
+
+            if (remainingSelected.length === 0) {
+                navigate('/', { replace: true });
+                return;
+            }
+            if (remainingSelected.length === 1) {
+                navigate(`/collections/${remainingSelected[0]}`, { replace: true });
+                return;
+            }
+            navigate(`/?collections=${remainingSelected.join(',')}`, { replace: true });
+        };
+
+        const fetchLibraryState = async () => {
+            try {
+                const [collectionsRes, recipesRes] = await Promise.all([
+                    fetch(`${BACK_END_URL}/collections`),
+                    fetch(`${BACK_END_URL}/recipes${query}`),
+                ]);
+
+                if (!collectionsRes.ok) {
+                    throw new Error(`Collections error: ${collectionsRes.statusText}`);
+                }
+                if (!recipesRes.ok) {
+                    throw new Error(`Recipes error: ${recipesRes.statusText}`);
+                }
+
+                const collectionsPayload = await collectionsRes.json();
+                const recipesPayload = await recipesRes.json();
+                if (!active) return false;
+
+                const nextCollections = collectionsPayload.collections ?? [];
+                setCollections(nextCollections);
+                setRecipes(recipesPayload.recipes ?? []);
+                syncSelectionWithAvailableCollections(nextCollections);
+
+                const busy = nextCollections.some(
+                    (collection: CollectionSummary) =>
+                        collection.status === 'queued' || collection.status === 'processing'
+                );
+                if (!busy) {
+                    stopPolling();
+                }
+                return busy;
+            } catch (error) {
+                if (!active) return false;
+                console.error('Error loading library:', error);
+                setErrorMessage('Failed to load your recipe library.');
+                stopPolling();
+                return false;
+            }
+        };
+
+        void (async () => {
+            const busy = await fetchLibraryState();
+            if (!active || !busy) {
+                return;
+            }
+            stopPolling();
+            pollRef.current = window.setInterval(() => {
+                void fetchLibraryState();
+            }, 1000);
+        })();
+
+        return () => {
+            active = false;
+            stopPolling();
+        };
+    }, [location.key, navigate, selectedCollectionIds]);
+
+    const applyPreset = (presetId: QuickPresetId) => {
+        const preset = quickPresets[presetId];
+        setFilters({ ...preset.filters });
+        setSortMode(preset.sortMode);
+        setActivePreset(presetId);
     };
 
-    // Get available cooking methods
-    const cookingMethods = ['All', 'Oven', 'Stovetop', 'Air Fryer', 'Blender', 'No Cook'];
+    const resetFilters = () => {
+        applyPreset('high-protein');
+    };
 
-    async function uploadPDF(rawPDF: File) {
-        console.log("Uploading file:", rawPDF, typeof rawPDF);
-        // Create a FormData object and append the PDF file.
+    const updateFilters = (next: Partial<FilterState>) => {
+        setFilters((current) => ({ ...current, ...next }));
+        setActivePreset(null);
+    };
+
+    const selectAllCollections = () => {
+        setSelectedCollectionIds(null);
+        navigate('/');
+    };
+
+    const toggleCollectionSelection = (targetCollectionId: string) => {
+        const allIds = collections.map((collection) => collection.id);
+        const currentIds = selectedCollectionIds && selectedCollectionIds.length > 0
+            ? selectedCollectionIds
+            : allIds;
+
+        let nextIds = currentIds.includes(targetCollectionId)
+            ? currentIds.filter((id) => id !== targetCollectionId)
+            : [...currentIds, targetCollectionId];
+
+        if (nextIds.length === 0 || nextIds.length === allIds.length) {
+            setSelectedCollectionIds(null);
+            navigate('/');
+            return;
+        }
+
+        nextIds = allIds.filter((id) => nextIds.includes(id));
+        setSelectedCollectionIds(nextIds);
+        if (nextIds.length === 1) {
+            navigate(`/collections/${nextIds[0]}`);
+        } else {
+            navigate(`/?collections=${nextIds.join(',')}`);
+        }
+    };
+
+    async function startCollectionUpload(file: File) {
+        setSubmitting(true);
+        setErrorMessage(null);
+        setInfoMessage(null);
+
         const formData = new FormData();
-        formData.append('file', rawPDF);
-
-        // backend local 'http://127.0.0.1:8000/parse-recipes'
-        // frontend hosted 'https://recipe-sorter-back.onrender.com/parse-recipes'
+        formData.append('file', file);
 
         try {
-            const url = BACK_END_URL + '/parse-recipes'
-            const response = await fetch(url, {
+            const response = await fetch(`${BACK_END_URL}/collections`, {
                 method: 'POST',
                 body: formData,
-                // Do NOT manually set the "Content-Type" header;
-                // browser will automatically set it to "multipart/form-data" with a proper boundary.
             });
 
             if (!response.ok) {
                 throw new Error(`Server error: ${response.statusText}`);
             }
 
-            // Parse and log the JSON response from your backend.
-            const result = await response.json();
-            console.log('Parsed Recipes:', result);
-            setLoading(false)
-            setRecipes(result.recipes)
-            return result;
+            const payload = await response.json();
+            const uploadedCollectionId = payload.collection?.id as string | undefined;
+            const uploadedCollectionName = payload.collection?.name as string | undefined;
+            if (uploadedCollectionId) {
+                setProgressCollectionId(uploadedCollectionId);
+            }
+            navigate('/', {
+                state: {
+                    reused: Boolean(payload.reused),
+                    uploadedCollectionId,
+                    uploadedCollectionName,
+                },
+            });
+            setRawPDF(null);
         } catch (error) {
-            console.error('Error uploading PDF:', error);
+            console.error('Error creating collection:', error);
+            setErrorMessage('Failed to upload and add this collection to your library.');
+        } finally {
+            setSubmitting(false);
         }
     }
 
-    const handleSubmit = async (e: Event) => {
-        e.preventDefault();
-        if (rawPDF) {
-            console.log("Selected file:", rawPDF);
-            setLoading(true)
-            await uploadPDF(rawPDF);
+    async function clearLibrary() {
+        const confirmed = window.confirm(
+            'Clear your entire recipe library? This will remove all uploaded collections and parsed recipes.'
+        );
+        if (!confirmed) {
+            return;
         }
+
+        setClearingLibrary(true);
+        setErrorMessage(null);
+        setInfoMessage(null);
+
+        try {
+            const response = await fetch(`${BACK_END_URL}/collections`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                throw new Error(payload?.detail || response.statusText);
+            }
+
+            if (pollRef.current) {
+                window.clearInterval(pollRef.current);
+                pollRef.current = null;
+            }
+
+            setCollections([]);
+            setRecipes([]);
+            setProgressCollectionId(null);
+            setSelectedCollectionIds(null);
+            setRawPDF(null);
+            setInfoMessage('Library cleared.');
+            navigate('/');
+        } catch (error) {
+            console.error('Error clearing library:', error);
+            setErrorMessage(
+                error instanceof Error ? error.message : 'Failed to clear the library.'
+            );
+        } finally {
+            setClearingLibrary(false);
+        }
+    }
+
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!rawPDF) {
+            setErrorMessage('Choose a PDF collection first.');
+            return;
+        }
+        await startCollectionUpload(rawPDF);
     };
 
+    const selectedCollectionCount = selectedCollectionIds?.length ?? collections.length;
+    const hasCollections = collections.length > 0;
+    const hasProcessing = collections.some((collection) => collection.status === 'queued' || collection.status === 'processing');
+    const showParsingEmpty = hasCollections && usableRecipes.length === 0 && hasProcessing;
+    const showFailedEmpty = hasCollections && usableRecipes.length === 0 && !hasProcessing;
+    const showNoMatch = hasCollections && usableRecipes.length > 0 && visibleRecipes.length === 0;
+
     return (
-        <div className="max-w-6xl mx-auto p-4">
-            <h1 className="text-2xl font-bold mb-6">Recipe Filter</h1>
+        <div className="min-h-screen">
+            <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+                <UploadPanel
+                    compact={hasCollections}
+                    submitting={submitting}
+                    clearingLibrary={clearingLibrary}
+                    canClearLibrary={hasCollections && !hasProcessing && !submitting}
+                    selectedFileName={rawPDF?.name || null}
+                    totalCollections={collections.length}
+                    totalRecipes={totalLibraryRecipes}
+                    infoMessage={infoMessage}
+                    errorMessage={errorMessage}
+                    onSubmit={handleSubmit}
+                    onFileChange={setRawPDF}
+                    onClearLibrary={clearLibrary}
+                />
 
+                {hasCollections ? (
+                    <>
+                        <ProgressPanel collection={progressCollection} />
+                        <CollectionHeader collections={collections} selectedCollectionIds={selectedCollectionIds} />
 
-            {/* File Upload */}
-            <div className="bg-blue-50 p-4 rounded mb-6">
-                <form onSubmit={handleSubmit}>
-                    <div className='flex items-center'>
-                        <label htmlFor="myfile" className='"
-                            p-2 
-                            rounded-md 
-                            mr-2 
-                            bg-green-500
-                            hover:bg-green-600
-                            hover:shadow-lg 
-                            transform 
-                            hover:-translate-y-1 
-                            transition 
-                            duration-300 
-                            ease-in-out 
-                             
-                            font-semibold
-                        "'>Select a PDF file:</label>
-                        <input type="file" accept="application/pdf" id="myfile" name="file" onChange={(e) => { setRawPDF(e.target.files[0]) }} />
+                        <div className="mt-6 grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+                            <div className="space-y-6">
+                                <FilterRail
+                                    filters={filters}
+                                    mobileOpen={mobileFiltersOpen}
+                                    onToggleMobile={() => setMobileFiltersOpen((open) => !open)}
+                                    onReset={resetFilters}
+                                    onChange={updateFilters}
+                                />
+                                <CollectionScopePanel
+                                    collections={collections}
+                                    selectedCollectionIds={selectedCollectionIds}
+                                    onSelectAll={selectAllCollections}
+                                    onToggleCollection={toggleCollectionSelection}
+                                />
+                            </div>
 
-                        {
-                            loading ?
-                                <div className="flex items-center justify-center p-2">
-                                    <div className="w-6 h-6 border-2 border-gray-300 border-t-green-500 border-solid rounded-full animate-spin"></div>
-                                </div>
-                                :
-                                <button
-                                    type="submit"
-                                    className="
-                            p-2 
-                            rounded-md 
-                            mr-2 
-                            bg-green-500 
-                            hover:bg-green-600 
-                            hover:shadow-lg 
-                            transform 
-                            hover:-translate-y-1 
-                            transition 
-                            duration-300 
-                            ease-in-out 
-                             
-                            font-semibold
-                        "
-                                >
-                                    Export PDF
-                                </button>
+                            <main className="space-y-6">
+                                <ResultsToolbar
+                                    visibleCount={visibleRecipes.length}
+                                    totalCount={selectedCollections.reduce((sum, collection) => sum + collection.parsedRecipes, 0)}
+                                    selectedCollectionCount={selectedCollectionCount}
+                                    activePreset={activePreset}
+                                    sortMode={sortMode}
+                                    onPresetSelect={applyPreset}
+                                    onSortModeChange={setSortMode}
+                                />
 
-                        }
-
+                                {showParsingEmpty && <EmptyState variant="parsing" />}
+                                {showFailedEmpty && <EmptyState variant="failed" />}
+                                {showNoMatch && <EmptyState variant="no-match" />}
+                                {visibleRecipes.length > 0 && <RecipeGrid recipes={visibleRecipes} />}
+                            </main>
+                        </div>
+                    </>
+                ) : (
+                    <div className="mt-6">
+                        <EmptyState variant="no-file" />
                     </div>
-
-                </form>
+                )}
             </div>
-
-            {/* Filter Controls */}
-            <div className="bg-white shadow rounded-lg p-6 mb-6">
-                <div className="flex justify-between mb-4">
-                    <h2 className="text-xl font-bold">Filters</h2>
-                    <button
-                        onClick={resetFilters}
-                        className="text-blue-600 hover:underline"
-                    >
-                        Reset All
-                    </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Protein Filter */}
-                    <div >
-                        <div className='flex mb-1 justify-between'>
-                            <div className="flex">
-                                <div >
-                                    <input type="checkbox" className='mr-2' checked={enableProtein} onChange={() => setEnableProtein(!enableProtein)} />
-                                </div>
-                                <label className="font-medium">Protein</label>
-
-                            </div>
-                            <div>
-                                <input
-                                    type="number"
-                                    value={proteinMin}
-                                    onChange={(e) => setProteinMin(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                                <span> - </span>
-                                <input
-                                    type="number"
-                                    value={proteinMax}
-                                    onChange={(e) => setProteinMax(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                                <span> g</span>
-                            </div>
-                        </div>
-                        <div className="bg-gray-200 h-2 rounded-full">
-                            <div
-                                className="bg-green-500 h-2 rounded-full"
-                                style={{
-                                    width: `${(proteinMax - proteinMin) / 0.6}%`,
-                                    marginLeft: `${proteinMin / 0.6}%`
-                                }}
-                            ></div>
-                        </div>
-                    </div>
-
-                    {/* Calories Filter */}
-                    <div>
-
-                        <div className="flex justify-between mb-1">
-                            <div className='flex'>
-                                <input type="checkbox" className='mr-2' checked={enableCalories} onChange={() => setEnableCalories(!enableCalories)} />
-                                <label className="font-medium mr-2">Calories</label>
-
-                            </div>
-                            <div>
-                                <input
-                                    type="number"
-                                    value={caloriesMin}
-                                    onChange={(e) => setCaloriesMin(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                                <span> - </span>
-                                <input
-                                    type="number"
-                                    value={caloriesMax}
-                                    onChange={(e) => setCaloriesMax(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                            </div>
-                        </div>
-                        <div className="bg-gray-200 h-2 rounded-full">
-                            <div
-                                className="bg-green-500 h-2 rounded-full"
-                                style={{
-                                    width: `${(caloriesMax - caloriesMin) / 7}%`,
-                                    marginLeft: `${caloriesMin / 7}%`
-                                }}
-                            ></div>
-                        </div>
-                    </div>
-
-                    {/* Fat Filter */}
-                    <div>
-                        <div className="flex justify-between mb-1">
-                            <div className='flex'>
-
-                                <input type="checkbox" className='mr-2' checked={enableFat} onChange={() => setEnableFat(!enableFat)} />
-                                <label className="font-medium">Fat</label>
-                            </div>
-                            <div>
-                                <input
-                                    type="number"
-                                    value={fatMin}
-                                    onChange={(e) => setFatMin(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                                <span> - </span>
-                                <input
-                                    type="number"
-                                    value={fatMax}
-                                    onChange={(e) => setFatMax(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                                <span> g</span>
-                            </div>
-                        </div>
-                        <div className="bg-gray-200 h-2 rounded-full">
-                            <div
-                                className="bg-green-500 h-2 rounded-full"
-                                style={{
-                                    width: `${(fatMax - fatMin) / 0.6}%`,
-                                    marginLeft: `${fatMin / 0.6}%`
-                                }}
-                            ></div>
-                        </div>
-                    </div>
-
-                    {/* Saturated Fat Filter */}
-                    <div>
-                        <div className="flex justify-between mb-1">
-                            <div>
-                                <input type="checkbox" className='mr-2' checked={enableSaturatedFat} onChange={() => setEnableSaturatedFat(!enableSaturatedFat)} />
-                                <label className="font-medium">Saturated Fat</label>
-                            </div>
-                            <div>
-                                <input
-                                    type="number"
-                                    value={saturatedFatMin}
-                                    onChange={(e) => setSaturatedFatMin(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                                <span> - </span>
-                                <input
-                                    type="number"
-                                    value={saturatedFatMax}
-                                    onChange={(e) => setSaturatedFatMax(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                                <span> g</span>
-                            </div>
-                        </div>
-                        <div className="bg-gray-200 h-2 rounded-full">
-                            <div
-                                className="bg-green-500 h-2 rounded-full"
-                                style={{
-                                    width: `${(saturatedFatMax - saturatedFatMin) / 0.3}%`,
-                                    marginLeft: `${saturatedFatMin / 0.3}%`
-                                }}
-                            ></div>
-                        </div>
-                    </div>
-
-                    {/* Fiber Filter */}
-                    <div>
-                        <div className="flex justify-between mb-1">
-                            <div>
-                                <input type="checkbox" className='mr-2' checked={enableFiber} onChange={() => setEnableFiber(!enableFiber)} />
-                                <label className="font-medium">Fiber</label>
-
-                            </div>
-                            <div>
-                                <input
-                                    type="number"
-                                    value={fiberMin}
-                                    onChange={(e) => setFiberMin(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                                <span> - </span>
-                                <input
-                                    type="number"
-                                    value={fiberMax}
-                                    onChange={(e) => setFiberMax(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                                <span> g</span>
-                            </div>
-                        </div>
-                        <div className="bg-gray-200 h-2 rounded-full">
-                            <div
-                                className="bg-green-500 h-2 rounded-full"
-                                style={{
-                                    width: `${(fiberMax - fiberMin) / 0.2}%`,
-                                    marginLeft: `${fiberMin / 0.2}%`
-                                }}
-                            ></div>
-                        </div>
-                    </div>
-
-                    {/* Prep Time Filter */}
-                    <div>
-                        <div className="flex justify-between mb-1">
-                            <div>
-                                <input type="checkbox" className='mr-2' checked={enablePrepTime} onChange={() => setEnablePrepTime(!enablePrepTime)} />
-                                <label className="font-medium">Prep Time</label>
-                            </div>
-                            <div>
-                                <input
-                                    type="number"
-                                    value={prepTimeMin}
-                                    onChange={(e) => setPrepTimeMin(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                                <span> - </span>
-                                <input
-                                    type="number"
-                                    value={prepTimeMax}
-                                    onChange={(e) => setPrepTimeMax(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                                <span> min</span>
-                            </div>
-                        </div>
-                        <div className="bg-gray-200 h-2 rounded-full">
-                            <div
-                                className="bg-green-500 h-2 rounded-full"
-                                style={{
-                                    width: `${(prepTimeMax - prepTimeMin) / 0.6}%`,
-                                    marginLeft: `${prepTimeMin / 0.6}%`
-                                }}
-                            ></div>
-                        </div>
-                    </div>
-
-                    {/* Ingredients Filter */}
-                    <div>
-                        <div className="flex justify-between mb-1">
-                            <div>
-                                <input type="checkbox" className='mr-2' checked={enableIngredients} onChange={() => setEnableIngredients(!enableIngredients)} />
-                                <label className="font-medium">Ingredients</label>
-                            </div>
-                            <div>
-                                <input
-                                    type="number"
-                                    value={ingredientsMin}
-                                    onChange={(e) => setIngredientsMin(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                                <span> - </span>
-                                <input
-                                    type="number"
-                                    value={ingredientsMax}
-                                    onChange={(e) => setIngredientsMax(Number(e.target.value))}
-                                    className="w-16 text-center border rounded"
-                                />
-                            </div>
-                        </div>
-                        <div className="bg-gray-200 h-2 rounded-full">
-                            <div
-                                className="bg-green-500 h-2 rounded-full"
-                                style={{
-                                    width: `${(ingredientsMax - ingredientsMin) / 0.15}%`,
-                                    marginLeft: `${ingredientsMin / 0.15}%`
-                                }}
-                            ></div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Cooking Method */}
-                <div className="flex justify-between content-end mt-6">
-                    <div>
-                        <h3 className="font-medium mb-2">Cooking Method</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {cookingMethods.map(method => (
-                                <button
-                                    key={method}
-                                    className={`px-3 py-1 rounded-full text-sm ${cookingMethod === method ? 'bg-green-500 text-white' : 'bg-gray-100'}`}
-                                    onClick={() => setCookingMethod(method)}
-                                >
-                                    {method}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Sorting */}
-                    <div>
-                        <select className='mr-4 rounded-lg p-1 bg-green-500' value={sortField} onChange={e => setSortField(e.target.value)}>
-                            <option value="protein">Protein</option>
-                            <option value="calories">Calories</option>
-                            <option value="fat">Fat</option>
-                        </select>
-                        <button className='rounded-lg p-1 bg-green-500' onClick={() => setSortDirection(dir => dir === 'asc' ? 'desc' : 'asc')}>
-                            Toggle ↑↓
-                        </button>
-                    </div>
-
-                </div>
-
-                {/* Results Count */}
-                <div className="mt-6 p-3 bg-gray-50 rounded">
-                    <div className="text-sm">
-                        Found <span className="font-semibold">{filteredRecipes.length}</span> of <span className="font-semibold">{recipes.length}</span> recipes
-                    </div>
-                </div>
-            </div>
-
-            {/* Recipe Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredRecipes.map((recipe, idx) => (
-                    <div key={idx} className="border rounded-lg p-4 shadow-sm">
-                        <div className="flex justify-between">
-                            <h3 className="font-medium">{recipe.title}</h3>
-                            <span className={`text-xs px-2 py-1 rounded-full ${recipe.cookingMethod === 'Oven' ? 'bg-red-100 text-red-800' :
-                                recipe.cookingMethod === 'Stovetop' ? 'bg-blue-100 text-blue-800' :
-                                    recipe.cookingMethod === 'Air Fryer' ? 'bg-orange-100 text-orange-800' :
-                                        recipe.cookingMethod === 'Blender' ? 'bg-green-100 text-green-800' :
-                                            'bg-purple-100 text-purple-800'
-                                }`}>
-                                {recipe.cookingMethod}
-                            </span>
-                        </div>
-
-                        <div className="mt-2 text-sm text-gray-500">
-                            <div className="flex justify-between">
-                                <span>{recipe.prepTime} min</span>
-                                <span>{recipe.ingredientCount} ingredients</span>
-                            </div>
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                            <div className="bg-blue-50 p-2 rounded">
-                                <div className="font-semibold">{recipe.calories}</div>
-                                <div className="text-xs text-gray-500">calories</div>
-                            </div>
-                            <div className="bg-green-50 p-2 rounded">
-                                <div className="font-semibold">{recipe.protein}g</div>
-                                <div className="text-xs text-gray-500">protein</div>
-                            </div>
-                            <div className="bg-yellow-50 p-2 rounded">
-                                <div className="font-semibold">{recipe.fat}g</div>
-                                <div className="text-xs text-gray-500">fat</div>
-                            </div>
-                        </div>
-
-                        <div className="mt-3 text-sm text-gray-600">
-                            <div className="flex justify-between border-t pt-2">
-                                <span>Saturated Fat</span>
-                                <span>{recipe.saturatedFat}g</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Fiber</span>
-                                <span>{recipe.fiber}g</span>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {filteredRecipes.length === 0 && (
-                <div className="p-8 text-center text-gray-500 bg-gray-50 rounded">
-                    No recipes match your current filters. Try adjusting your criteria.
-                </div>
-            )}
         </div>
     );
-};
-
-export default Home;
+}
