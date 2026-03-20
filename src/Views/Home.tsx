@@ -26,12 +26,67 @@ import type {
 } from '../types/recipe-sorter';
 
 const BACK_END_URL = import.meta.env.VITE_BACK_END_API_URL;
+const TRANSIENT_STATUS_CODES = new Set([502, 503, 504]);
+const RETRY_DELAYS_MS = [500, 1500, 3000];
 
 type LocationState = {
     reused?: boolean;
     uploadedCollectionId?: string;
     uploadedCollectionName?: string;
 };
+
+const wait = (ms: number) =>
+    new Promise<void>((resolve) => {
+        window.setTimeout(resolve, ms);
+    });
+
+async function getResponseErrorMessage(response: Response, fallback: string) {
+    const raw = await response.text().catch(() => '');
+    if (!raw) {
+        return fallback;
+    }
+
+    try {
+        const payload = JSON.parse(raw) as { detail?: string; message?: string };
+        return payload.detail || payload.message || fallback;
+    } catch {
+        return raw.trim() || fallback;
+    }
+}
+
+async function fetchJsonWithRetry<T>(url: string, init?: RequestInit): Promise<T> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
+        try {
+            const response = await fetch(url, init);
+            if (!response.ok) {
+                const fallback = `Request failed (${response.status})`;
+                const message = await getResponseErrorMessage(response, fallback);
+                if (attempt < RETRY_DELAYS_MS.length && TRANSIENT_STATUS_CODES.has(response.status)) {
+                    await wait(RETRY_DELAYS_MS[attempt]);
+                    continue;
+                }
+                throw new Error(message);
+            }
+
+            return (await response.json()) as T;
+        } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                throw error;
+            }
+
+            lastError = error instanceof Error ? error : new Error('Request failed.');
+            if (attempt < RETRY_DELAYS_MS.length && error instanceof TypeError) {
+                await wait(RETRY_DELAYS_MS[attempt]);
+                continue;
+            }
+            break;
+        }
+    }
+
+    throw lastError ?? new Error('Request failed.');
+}
 
 export default function Home() {
     const { collectionId } = useParams();
@@ -168,25 +223,16 @@ export default function Home() {
 
         const fetchLibraryState = async () => {
             try {
-                const [collectionsRes, recipesRes] = await Promise.all([
-                    fetch(`${BACK_END_URL}/collections`),
-                    fetch(`${BACK_END_URL}/recipes${query}`),
+                const [collectionsPayload, recipesPayload] = await Promise.all([
+                    fetchJsonWithRetry<{ collections?: CollectionSummary[] }>(`${BACK_END_URL}/collections`),
+                    fetchJsonWithRetry<{ recipes?: Recipe[] }>(`${BACK_END_URL}/recipes${query}`),
                 ]);
-
-                if (!collectionsRes.ok) {
-                    throw new Error(`Collections error: ${collectionsRes.statusText}`);
-                }
-                if (!recipesRes.ok) {
-                    throw new Error(`Recipes error: ${recipesRes.statusText}`);
-                }
-
-                const collectionsPayload = await collectionsRes.json();
-                const recipesPayload = await recipesRes.json();
                 if (!active) return false;
 
                 const nextCollections = collectionsPayload.collections ?? [];
                 setCollections(nextCollections);
                 setRecipes(recipesPayload.recipes ?? []);
+                setErrorMessage(null);
                 syncSelectionWithAvailableCollections(nextCollections);
 
                 const busy = nextCollections.some(
@@ -284,7 +330,11 @@ export default function Home() {
             });
 
             if (!response.ok) {
-                throw new Error(`Server error: ${response.statusText}`);
+                const message = await getResponseErrorMessage(
+                    response,
+                    `Server error (${response.status})`
+                );
+                throw new Error(message);
             }
 
             const payload = await response.json();
@@ -327,8 +377,11 @@ export default function Home() {
             });
 
             if (!response.ok) {
-                const payload = await response.json().catch(() => null);
-                throw new Error(payload?.detail || response.statusText);
+                const message = await getResponseErrorMessage(
+                    response,
+                    `Request failed (${response.status})`
+                );
+                throw new Error(message);
             }
 
             if (pollRef.current) {
