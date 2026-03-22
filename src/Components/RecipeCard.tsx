@@ -9,10 +9,34 @@ const displayValue = (value: number | null, suffix = '') => {
     return `${value}${suffix}`;
 };
 
+const getMissingMacroLabel = (recipe: Recipe) => {
+    const missing = [
+        recipe.calories == null ? 'calories' : null,
+        recipe.protein == null ? 'protein' : null,
+        recipe.fat == null ? 'fat' : null,
+        recipe.fiber == null ? 'fiber' : null,
+    ].filter((value): value is string => Boolean(value));
+
+    if (missing.length === 0) {
+        return null;
+    }
+    if (missing.length === 1) {
+        return `Missing ${missing[0]}`;
+    }
+    if (missing.length === 2) {
+        return `Missing ${missing[0]} + ${missing[1]}`;
+    }
+    if (missing.length === 3) {
+        return `Missing ${missing[0]}, ${missing[1]} + ${missing[2]}`;
+    }
+    return 'Missing macro data';
+};
+
 export default function RecipeCard({ recipe }: RecipeCardProps) {
     const pageLabel = recipe.pageNumbers.length ? `Page ${recipe.pageNumbers.join(', ')}` : 'Page unknown';
     const method = recipe.cookingMethod || 'Other';
     const partial = recipe.macroStatus === 'partial';
+    const missingMacroLabel = getMissingMacroLabel(recipe);
 
     return (
         <article
@@ -38,17 +62,15 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
                     <span className="rounded-full bg-[color:var(--paper)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--ink)]">
                         {method}
                     </span>
-                    <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${
-                            partial
-                                ? 'bg-[color:rgba(185,133,46,0.14)] text-[color:var(--amber)]'
-                                : 'bg-[color:rgba(111,138,69,0.12)] text-[color:var(--forest)]'
-                        }`}
-                    >
-                        {partial ? 'Partial' : 'Complete'}
-                    </span>
                 </div>
             </div>
+
+            {partial && missingMacroLabel && (
+                <div className="mt-4 inline-flex max-w-full items-center gap-2 rounded-full border border-[color:rgba(185,133,46,0.28)] bg-[color:rgba(185,133,46,0.08)] px-3 py-1.5 text-[11px] font-medium text-[color:var(--amber)]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--amber)]" aria-hidden="true" />
+                    <span className="truncate">{missingMacroLabel}</span>
+                </div>
+            )}
 
             <div className="mt-5 grid grid-cols-3 gap-3">
                 {[

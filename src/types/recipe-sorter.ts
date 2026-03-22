@@ -59,10 +59,15 @@ export type SortMode =
 export type QuickPresetId = 'high-protein' | 'lower-calorie' | 'quick-prep';
 
 export type FilterState = {
+    useProtein: boolean;
     proteinMin: number;
+    useCalories: boolean;
     caloriesMax: number;
+    useFat: boolean;
     fatMax: number;
+    useFiber: boolean;
     fiberMin: number;
+    usePrepTime: boolean;
     prepTimeMax: number;
     cookingMethod: string;
     showIncompleteData: boolean;

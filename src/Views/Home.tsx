@@ -30,12 +30,6 @@ const TRANSIENT_STATUS_CODES = new Set([502, 503, 504]);
 const RETRY_DELAYS_MS = [500, 1500, 3000];
 const POLL_INTERVAL_MS = 3000;
 
-type LocationState = {
-    reused?: boolean;
-    uploadedCollectionId?: string;
-    uploadedCollectionName?: string;
-};
-
 const wait = (ms: number) =>
     new Promise<void>((resolve) => {
         window.setTimeout(resolve, ms);
@@ -94,7 +88,6 @@ export default function Home() {
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams] = useSearchParams();
-    const locationState = (location.state as LocationState | null) ?? null;
     const pollRef = useRef<number | null>(null);
     const pollInFlightRef = useRef(false);
 
@@ -102,7 +95,6 @@ export default function Home() {
     const [submitting, setSubmitting] = useState(false);
     const [clearingLibrary, setClearingLibrary] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [infoMessage, setInfoMessage] = useState<string | null>(null);
     const [collections, setCollections] = useState<CollectionSummary[]>([]);
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [progressCollectionId, setProgressCollectionId] = useState<string | null>(null);
@@ -148,22 +140,6 @@ export default function Home() {
             .filter(Boolean);
         setSelectedCollectionIds(queryIds.length > 0 ? queryIds : null);
     }, [collectionId, searchParams]);
-
-    useEffect(() => {
-        if (!locationState) return;
-        if (locationState.uploadedCollectionId) {
-            setProgressCollectionId(locationState.uploadedCollectionId);
-        }
-        if (locationState.uploadedCollectionName) {
-            setInfoMessage(
-                locationState.reused
-                    ? `"${locationState.uploadedCollectionName}" is already in your library.`
-                    : `Added "${locationState.uploadedCollectionName}" to your library.`
-            );
-        } else if (locationState.reused) {
-            setInfoMessage('Opened an existing collection from your library.');
-        }
-    }, [location.key, locationState]);
 
     useEffect(() => {
         return () => {
@@ -294,6 +270,18 @@ export default function Home() {
         setActivePreset(null);
     };
 
+    const setAllMacroFilters = (enabled: boolean) => {
+        setFilters((current) => ({
+            ...current,
+            useProtein: enabled,
+            useCalories: enabled,
+            useFat: enabled,
+            useFiber: enabled,
+            usePrepTime: enabled,
+        }));
+        setActivePreset(null);
+    };
+
     const selectAllCollections = () => {
         setSelectedCollectionIds(null);
         navigate('/');
@@ -327,7 +315,6 @@ export default function Home() {
     async function startCollectionUpload(file: File) {
         setSubmitting(true);
         setErrorMessage(null);
-        setInfoMessage(null);
 
         const formData = new FormData();
         formData.append('file', file);
@@ -348,17 +335,10 @@ export default function Home() {
 
             const payload = await response.json();
             const uploadedCollectionId = payload.collection?.id as string | undefined;
-            const uploadedCollectionName = payload.collection?.name as string | undefined;
             if (uploadedCollectionId) {
                 setProgressCollectionId(uploadedCollectionId);
             }
-            navigate('/', {
-                state: {
-                    reused: Boolean(payload.reused),
-                    uploadedCollectionId,
-                    uploadedCollectionName,
-                },
-            });
+            navigate('/');
             setRawPDF(null);
         } catch (error) {
             console.error('Error creating collection:', error);
@@ -378,7 +358,6 @@ export default function Home() {
 
         setClearingLibrary(true);
         setErrorMessage(null);
-        setInfoMessage(null);
 
         try {
             const response = await fetch(`${BACK_END_URL}/collections`, {
@@ -403,7 +382,6 @@ export default function Home() {
             setProgressCollectionId(null);
             setSelectedCollectionIds(null);
             setRawPDF(null);
-            setInfoMessage('Library cleared.');
             navigate('/');
         } catch (error) {
             console.error('Error clearing library:', error);
@@ -442,7 +420,6 @@ export default function Home() {
                     selectedFileName={rawPDF?.name || null}
                     totalCollections={collections.length}
                     totalRecipes={totalLibraryRecipes}
-                    infoMessage={infoMessage}
                     errorMessage={errorMessage}
                     onSubmit={handleSubmit}
                     onFileChange={setRawPDF}
@@ -461,6 +438,7 @@ export default function Home() {
                                     mobileOpen={mobileFiltersOpen}
                                     onToggleMobile={() => setMobileFiltersOpen((open) => !open)}
                                     onReset={resetFilters}
+                                    onSetAllMacroFilters={setAllMacroFilters}
                                     onChange={updateFilters}
                                 />
                                 <CollectionScopePanel

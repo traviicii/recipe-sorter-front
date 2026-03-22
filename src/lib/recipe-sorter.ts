@@ -29,10 +29,15 @@ export const quickPresets: Record<
         label: 'High Protein',
         description: 'Bias toward meals that hit protein targets first.',
         filters: {
+            useProtein: true,
             proteinMin: 30,
+            useCalories: true,
             caloriesMax: 700,
+            useFat: true,
             fatMax: 40,
+            useFiber: true,
             fiberMin: 0,
+            usePrepTime: true,
             prepTimeMax: 60,
             cookingMethod: 'All',
             showIncompleteData: true,
@@ -43,10 +48,15 @@ export const quickPresets: Record<
         label: 'Lower Calorie',
         description: 'Keep calories tighter while preserving usable protein.',
         filters: {
+            useProtein: true,
             proteinMin: 20,
+            useCalories: true,
             caloriesMax: 500,
+            useFat: true,
             fatMax: 28,
+            useFiber: true,
             fiberMin: 0,
+            usePrepTime: true,
             prepTimeMax: 60,
             cookingMethod: 'All',
             showIncompleteData: true,
@@ -57,10 +67,15 @@ export const quickPresets: Record<
         label: 'Quick Prep',
         description: 'Surface recipes that stay fast enough for weekday prep.',
         filters: {
+            useProtein: true,
             proteinMin: 15,
+            useCalories: true,
             caloriesMax: 700,
+            useFat: true,
             fatMax: 40,
+            useFiber: true,
             fiberMin: 0,
+            usePrepTime: true,
             prepTimeMax: 20,
             cookingMethod: 'All',
             showIncompleteData: true,
@@ -97,19 +112,19 @@ export function filterRecipes(recipes: Recipe[], filters: FilterState): Recipe[]
         if (!filters.showIncompleteData && recipe.macroStatus !== 'complete') {
             return false;
         }
-        if (!meetsMinimum(recipe.protein, filters.proteinMin, filters.showIncompleteData)) {
+        if (filters.useProtein && !meetsMinimum(recipe.protein, filters.proteinMin, filters.showIncompleteData)) {
             return false;
         }
-        if (!meetsMaximum(recipe.calories, filters.caloriesMax, filters.showIncompleteData)) {
+        if (filters.useCalories && !meetsMaximum(recipe.calories, filters.caloriesMax, filters.showIncompleteData)) {
             return false;
         }
-        if (!meetsMaximum(recipe.fat, filters.fatMax, filters.showIncompleteData)) {
+        if (filters.useFat && !meetsMaximum(recipe.fat, filters.fatMax, filters.showIncompleteData)) {
             return false;
         }
-        if (!meetsMinimum(recipe.fiber, filters.fiberMin, filters.showIncompleteData)) {
+        if (filters.useFiber && !meetsMinimum(recipe.fiber, filters.fiberMin, filters.showIncompleteData)) {
             return false;
         }
-        if (!meetsMaximum(recipe.prepTime, filters.prepTimeMax, filters.showIncompleteData)) {
+        if (filters.usePrepTime && !meetsMaximum(recipe.prepTime, filters.prepTimeMax, filters.showIncompleteData)) {
             return false;
         }
         if (filters.cookingMethod !== 'All') {

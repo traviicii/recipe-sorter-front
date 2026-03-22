@@ -6,6 +6,7 @@ type FilterRailProps = {
     mobileOpen: boolean;
     onToggleMobile: () => void;
     onReset: () => void;
+    onSetAllMacroFilters: (enabled: boolean) => void;
     onChange: (next: Partial<FilterState>) => void;
 };
 
@@ -14,65 +15,90 @@ const controlClassName =
 
 type RangeControlProps = {
     label: string;
+    enabled: boolean;
     value: number;
     min: number;
     max: number;
     step?: number;
     suffix?: string;
     accentColor: string;
+    onEnabledChange: (enabled: boolean) => void;
     onChange: (value: number) => void;
 };
 
 function RangeControl({
     label,
+    enabled,
     value,
     min,
     max,
     step = 1,
     suffix = '',
     accentColor,
+    onEnabledChange,
     onChange,
 }: RangeControlProps) {
     const safeValue = Number.isFinite(value) ? value : min;
 
     return (
-        <label className="block">
+        <div className="block">
             <div className="flex items-center justify-between gap-3">
                 <div className="text-sm font-medium text-[color:var(--ink)]">{label}</div>
-                <div className="flex items-center gap-2">
-                    <input
-                        type="number"
-                        min={min}
-                        max={max}
-                        step={step}
-                        value={safeValue}
-                        onChange={(event) => onChange(Number(event.target.value))}
-                        className="w-24 rounded-2xl border border-[color:var(--mist)] bg-white px-3 py-2 text-right text-sm text-[color:var(--ink)] outline-none transition focus:border-[color:var(--forest)]"
-                    />
-                    {suffix && <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--ink-muted)]">{suffix}</span>}
+                <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--ink-muted)]">
+                        <input
+                            type="checkbox"
+                            checked={enabled}
+                            onChange={(event) => onEnabledChange(event.target.checked)}
+                        />
+                        Include
+                    </label>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number"
+                            min={min}
+                            max={max}
+                            step={step}
+                            value={safeValue}
+                            disabled={!enabled}
+                            onChange={(event) => onChange(Number(event.target.value))}
+                            className="w-24 rounded-2xl border border-[color:var(--mist)] bg-white px-3 py-2 text-right text-sm text-[color:var(--ink)] outline-none transition focus:border-[color:var(--forest)] disabled:cursor-not-allowed disabled:opacity-45"
+                        />
+                        {suffix && <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--ink-muted)]">{suffix}</span>}
+                    </div>
                 </div>
             </div>
 
-            <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={safeValue}
-                onChange={(event) => onChange(Number(event.target.value))}
-                className="mt-3 w-full"
-                style={{ accentColor }}
-            />
+            <div className={enabled ? '' : 'opacity-45'}>
+                <input
+                    type="range"
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={safeValue}
+                    disabled={!enabled}
+                    onChange={(event) => onChange(Number(event.target.value))}
+                    className="mt-3 w-full disabled:cursor-not-allowed"
+                    style={{ accentColor }}
+                />
 
-            <div className="mt-1 flex justify-between text-[11px] font-medium uppercase tracking-[0.12em] text-[color:var(--ink-muted)]">
-                <span>{min}</span>
-                <span>{max}{suffix}</span>
+                <div className="mt-1 flex justify-between text-[11px] font-medium uppercase tracking-[0.12em] text-[color:var(--ink-muted)]">
+                    <span>{min}</span>
+                    <span>{max}{suffix}</span>
+                </div>
             </div>
-        </label>
+        </div>
     );
 }
 
-export default function FilterRail({ filters, mobileOpen, onToggleMobile, onReset, onChange }: FilterRailProps) {
+export default function FilterRail({
+    filters,
+    mobileOpen,
+    onToggleMobile,
+    onReset,
+    onSetAllMacroFilters,
+    onChange,
+}: FilterRailProps) {
     return (
         <div>
             <button
@@ -86,72 +112,96 @@ export default function FilterRail({ filters, mobileOpen, onToggleMobile, onRese
 
             <aside className={`${mobileOpen ? 'block' : 'hidden'} lg:sticky lg:top-6 lg:block`}>
                 <div className="rounded-[28px] border border-[color:var(--mist)] bg-white/90 p-5 shadow-[0_18px_40px_rgba(31,36,48,0.05)]">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--forest)]">
-                                Filter rail
-                            </div>
-                            <h3 className="mt-1 text-xl text-[color:var(--ink)]" style={{ fontFamily: 'var(--font-display)' }}>
-                                Macro guardrails
-                            </h3>
+                    <div>
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--forest)]">
+                            Filter rail
                         </div>
-                        <button
-                            type="button"
-                            onClick={onReset}
-                            className="text-sm font-medium text-[color:var(--forest)] transition hover:text-[color:var(--ink)]"
-                        >
-                            Reset
-                        </button>
+                        <h3 className="mt-1 text-xl text-[color:var(--ink)]" style={{ fontFamily: 'var(--font-display)' }}>
+                            Macro guardrails
+                        </h3>
+                        <div className="mt-3 flex items-center gap-1.5 whitespace-nowrap overflow-x-auto pb-1">
+                            <button
+                                type="button"
+                                onClick={() => onSetAllMacroFilters(true)}
+                                className="rounded-full border border-[color:var(--mist)] bg-[color:var(--paper)] px-2.5 py-1 text-[10px] font-semibold tracking-[0.04em] text-[color:var(--ink-muted)] transition hover:border-[color:var(--ink-muted)] hover:text-[color:var(--ink)]"
+                            >
+                                Include all
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onSetAllMacroFilters(false)}
+                                className="rounded-full border border-[color:var(--mist)] bg-[color:var(--paper)] px-2.5 py-1 text-[10px] font-semibold tracking-[0.04em] text-[color:var(--ink-muted)] transition hover:border-[color:var(--ink-muted)] hover:text-[color:var(--ink)]"
+                            >
+                                Clear all
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onReset}
+                                className="rounded-full border border-[color:color-mix(in_srgb,var(--forest)_28%,white)] bg-[color:color-mix(in_srgb,var(--forest)_8%,white)] px-2.5 py-1 text-[10px] font-semibold tracking-[0.04em] text-[color:var(--forest)] transition hover:border-[color:var(--forest)] hover:text-[color:var(--ink)]"
+                            >
+                                Reset
+                            </button>
+                        </div>
                     </div>
 
                     <div className="mt-5 space-y-5">
                         <RangeControl
                             label="Protein minimum"
+                            enabled={filters.useProtein}
                             value={filters.proteinMin}
                             min={0}
                             max={60}
                             suffix="g"
                             accentColor="var(--forest)"
+                            onEnabledChange={(enabled) => onChange({ useProtein: enabled })}
                             onChange={(value) => onChange({ proteinMin: value })}
                         />
 
                         <RangeControl
                             label="Calories maximum"
+                            enabled={filters.useCalories}
                             value={filters.caloriesMax}
                             min={200}
                             max={900}
                             suffix=""
                             accentColor="var(--clay)"
+                            onEnabledChange={(enabled) => onChange({ useCalories: enabled })}
                             onChange={(value) => onChange({ caloriesMax: value })}
                         />
 
                         <RangeControl
                             label="Fat maximum"
+                            enabled={filters.useFat}
                             value={filters.fatMax}
                             min={5}
                             max={60}
                             suffix="g"
                             accentColor="var(--amber)"
+                            onEnabledChange={(enabled) => onChange({ useFat: enabled })}
                             onChange={(value) => onChange({ fatMax: value })}
                         />
 
                         <RangeControl
                             label="Fiber minimum"
+                            enabled={filters.useFiber}
                             value={filters.fiberMin}
                             min={0}
                             max={20}
                             suffix="g"
                             accentColor="var(--forest)"
+                            onEnabledChange={(enabled) => onChange({ useFiber: enabled })}
                             onChange={(value) => onChange({ fiberMin: value })}
                         />
 
                         <RangeControl
                             label="Prep time maximum"
+                            enabled={filters.usePrepTime}
                             value={filters.prepTimeMax}
                             min={5}
                             max={90}
                             suffix="m"
                             accentColor="var(--ink)"
+                            onEnabledChange={(enabled) => onChange({ usePrepTime: enabled })}
                             onChange={(value) => onChange({ prepTimeMax: value })}
                         />
 

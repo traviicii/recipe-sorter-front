@@ -8,7 +8,6 @@ type UploadPanelProps = {
     selectedFileName: string | null;
     totalCollections: number;
     totalRecipes: number;
-    infoMessage: string | null;
     errorMessage: string | null;
     onSubmit: (event: FormEvent<HTMLFormElement>) => void;
     onFileChange: (file: File | null) => void;
@@ -23,7 +22,6 @@ export default function UploadPanel({
     selectedFileName,
     totalCollections,
     totalRecipes,
-    infoMessage,
     errorMessage,
     onSubmit,
     onFileChange,
@@ -40,7 +38,7 @@ export default function UploadPanel({
                         className={`text-[color:var(--ink)] ${compact ? 'text-3xl' : 'text-4xl md:text-5xl'}`}
                         style={{ fontFamily: 'var(--font-display)', lineHeight: 1.05 }}
                     >
-                        Upload a recipe collection and find meals that match your macros.
+                        Upload a recipe collection and find meals that match your desired macros.
                     </h1>
                     <p className="mt-3 max-w-xl text-sm leading-6 text-[color:var(--ink-muted)] md:text-base">
                         Drop in a PDF of recipes, wait a moment while we read it, then filter the resulting cards by the
@@ -94,11 +92,6 @@ export default function UploadPanel({
                 </button>
             </form>
 
-            {infoMessage && (
-                <div className="mt-4 inline-flex rounded-full bg-[color:var(--paper)] px-4 py-2 text-sm font-medium text-[color:var(--forest)]">
-                    {infoMessage}
-                </div>
-            )}
             {errorMessage && (
                 <div className="mt-4 rounded-2xl bg-[color:rgba(201,109,59,0.12)] px-4 py-3 text-sm text-[color:var(--clay)]">
                     {errorMessage}
