@@ -10,6 +10,19 @@ type CollectionScopePanelProps = {
     onToggleCollection: (collectionId: string) => void;
 };
 
+const getSelectionPreview = (collections: CollectionSummary[], allSelected: boolean) => {
+    if (allSelected) {
+        return 'All uploaded collections are currently included.';
+    }
+    if (collections.length === 0) {
+        return 'No collections selected.';
+    }
+    if (collections.length <= 2) {
+        return collections.map((collection) => collection.name).join(' + ');
+    }
+    return `${collections[0].name}, ${collections[1].name} + ${collections.length - 2} more`;
+};
+
 export default function CollectionScopePanel({
     collections,
     selectedCollectionIds,
@@ -25,25 +38,20 @@ export default function CollectionScopePanel({
         }
         return collections.filter((collection) => selectedSet.has(collection.id));
     }, [allSelected, collections, selectedSet]);
-    const selectedRecipeCount = selectedCollections.reduce((sum, collection) => sum + collection.parsedRecipes, 0);
-    const scopeLabel = allSelected
-        ? 'All collections'
-        : selectedCollections.length === 1
-            ? selectedCollections[0].name
-            : `${selectedCollections.length} collections selected`;
+    const selectionPreview = getSelectionPreview(selectedCollections, allSelected);
 
     return (
         <section className="rounded-[28px] border border-[color:var(--mist)] bg-white/90 p-5 shadow-[0_18px_40px_rgba(31,36,48,0.05)]">
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--forest)]">
-                        Collection scope
+                        Source filter
                     </div>
                     <h3 className="mt-1 text-lg text-[color:var(--ink)]" style={{ fontFamily: 'var(--font-display)' }}>
-                        {scopeLabel}
+                        Choose collections
                     </h3>
-                    <p className="mt-1 text-sm text-[color:var(--ink-muted)]">
-                        {selectedRecipeCount} recipes across {selectedCollections.length} {selectedCollections.length === 1 ? 'collection' : 'collections'}
+                    <p className="mt-1 text-sm leading-6 text-[color:var(--ink-muted)]">
+                        {selectionPreview}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -51,9 +59,9 @@ export default function CollectionScopePanel({
                         <button
                             type="button"
                             onClick={onSelectAll}
-                            className="rounded-full bg-[color:var(--paper)] px-4 py-2 text-sm font-semibold text-[color:var(--ink)] transition hover:bg-[color:var(--mist)]"
+                            className="rounded-full border border-[color:var(--mist)] bg-[color:var(--paper)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--ink)] transition hover:border-[color:var(--ink-muted)]"
                         >
-                            All
+                            Include all
                         </button>
                     )}
                     <button
