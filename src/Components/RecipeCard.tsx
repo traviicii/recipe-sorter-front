@@ -40,16 +40,16 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
 
     return (
         <article
-            className={`rounded-[28px] border bg-white/95 p-5 shadow-[0_18px_32px_rgba(31,36,48,0.05)] transition hover:-translate-y-0.5 ${
+            className={`min-w-0 overflow-hidden rounded-[28px] border bg-white/95 p-5 shadow-[0_18px_32px_rgba(31,36,48,0.05)] transition hover:-translate-y-0.5 ${
                 partial ? 'border-[color:rgba(185,133,46,0.45)]' : 'border-[color:var(--mist)]'
             }`}
         >
             <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 flex-1">
                     <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--ink-muted)]">
                         {pageLabel}
                     </div>
-                    <h3 className="mt-2 text-xl text-[color:var(--ink)]" style={{ fontFamily: 'var(--font-display)', lineHeight: 1.1 }}>
+                    <h3 className="mt-2 text-xl text-[color:var(--ink)] break-words" style={{ fontFamily: 'var(--font-display)', lineHeight: 1.1 }}>
                         {recipe.title || 'Untitled recipe'}
                     </h3>
                     {recipe.collectionName && (
@@ -58,8 +58,8 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
                         </div>
                     )}
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                    <span className="rounded-full bg-[color:var(--paper)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--ink)]">
+                <div className="flex max-w-[42%] flex-col items-end gap-2">
+                    <span className="max-w-full truncate rounded-full bg-[color:var(--paper)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-[color:var(--ink)]">
                         {method}
                     </span>
                 </div>
@@ -72,7 +72,7 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
                 </div>
             )}
 
-            <div className="mt-5 grid grid-cols-3 gap-3">
+            <div className="mt-5 grid grid-cols-3 gap-2.5">
                 {[
                     {
                         label: 'Protein',
@@ -90,11 +90,11 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
                         tone: 'bg-[color:rgba(185,133,46,0.12)] text-[color:var(--amber)]',
                     },
                 ].map((item) => (
-                    <div key={item.label} className={`rounded-2xl p-3 ${item.tone}`}>
-                        <div className="text-lg font-semibold" style={{ fontFamily: 'var(--font-mono)' }}>
+                    <div key={item.label} className={`min-w-0 rounded-2xl px-2.5 py-3 sm:px-3 ${item.tone}`}>
+                        <div className="truncate text-base font-semibold leading-none sm:text-lg" style={{ fontFamily: 'var(--font-mono)' }}>
                             {item.value}
                         </div>
-                        <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] opacity-80">
+                        <div className="mt-1 whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.04em] leading-none opacity-80 sm:text-[10px]">
                             {item.label}
                         </div>
                     </div>
@@ -102,13 +102,13 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-[color:var(--ink-muted)]">
-                <div className="rounded-2xl border border-[color:var(--mist)] px-3 py-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em]">Fiber</div>
-                    <div className="mt-1 text-[color:var(--ink)]">{displayValue(recipe.fiber, 'g')}</div>
+                <div className="min-w-0 rounded-2xl border border-[color:var(--mist)] px-3 py-2">
+                    <div className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.06em] sm:text-[10px]">Fiber</div>
+                    <div className="mt-1 break-words text-[color:var(--ink)]">{displayValue(recipe.fiber, 'g')}</div>
                 </div>
-                <div className="rounded-2xl border border-[color:var(--mist)] px-3 py-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em]">Prep time</div>
-                    <div className="mt-1 text-[color:var(--ink)]">{displayValue(recipe.prepTime, ' min')}</div>
+                <div className="min-w-0 rounded-2xl border border-[color:var(--mist)] px-3 py-2">
+                    <div className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.06em] sm:text-[10px]">Prep time</div>
+                    <div className="mt-1 break-words text-[color:var(--ink)]">{displayValue(recipe.prepTime, ' min')}</div>
                 </div>
             </div>
         </article>
