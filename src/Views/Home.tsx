@@ -98,6 +98,8 @@ export default function Home() {
     const [collections, setCollections] = useState<CollectionSummary[]>([]);
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [progressCollectionId, setProgressCollectionId] = useState<string | null>(null);
+    const [retryingCollectionId, setRetryingCollectionId] = useState<string | null>(null);
+    const [libraryRefreshKey, setLibraryRefreshKey] = useState(0);
     const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[] | null>(null);
     const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
     const [sortMode, setSortMode] = useState<SortMode>(defaultSortMode);
@@ -252,7 +254,7 @@ export default function Home() {
             active = false;
             stopPolling();
         };
-    }, [location.key, navigate, selectedCollectionIds]);
+    }, [libraryRefreshKey, location.key, navigate, selectedCollectionIds]);
 
     const applyPreset = (presetId: QuickPresetId) => {
         const preset = quickPresets[presetId];
@@ -393,6 +395,44 @@ export default function Home() {
         }
     }
 
+    async function retryFailedRecipes(collectionIdToRetry: string) {
+        setRetryingCollectionId(collectionIdToRetry);
+        setErrorMessage(null);
+
+        try {
+            const response = await fetch(`${BACK_END_URL}/collections/${collectionIdToRetry}/retry-failed`, {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                const message = await getResponseErrorMessage(
+                    response,
+                    `Request failed (${response.status})`
+                );
+                throw new Error(message);
+            }
+
+            const payload = await response.json();
+            const nextCollection = payload.collection as CollectionSummary | undefined;
+            if (nextCollection) {
+                setCollections((current) =>
+                    current.map((collection) =>
+                        collection.id === nextCollection.id ? nextCollection : collection
+                    )
+                );
+                setProgressCollectionId(nextCollection.id);
+            }
+            setLibraryRefreshKey((current) => current + 1);
+        } catch (error) {
+            console.error('Error retrying failed recipes:', error);
+            setErrorMessage(
+                error instanceof Error ? error.message : 'Failed to retry the failed recipes.'
+            );
+        } finally {
+            setRetryingCollectionId(null);
+        }
+    }
+
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!rawPDF) {
@@ -428,7 +468,11 @@ export default function Home() {
 
                 {hasCollections ? (
                     <>
-                        <ProgressPanel collection={progressCollection} />
+                        <ProgressPanel
+                            collection={progressCollection}
+                            retryingCollectionId={retryingCollectionId}
+                            onRetryFailedRecipes={retryFailedRecipes}
+                        />
                         <CollectionHeader collections={collections} selectedCollectionIds={selectedCollectionIds} />
 
                         <div className="mt-6 grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
