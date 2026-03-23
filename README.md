@@ -48,6 +48,10 @@ See `/Users/travispeck/Documents/coding_projects/recipe-sorter/recipe-sorter-fro
 - `VITE_BACK_END_API_URL`
   - Base URL for the FastAPI backend
   - Local default: `http://127.0.0.1:8000`
+- `VITE_SUPPORT_URL`
+  - Optional shared support page for subtle in-app developer tipping
+  - The app appends `source=recipe-sorter` and `entry=hero-support`
+  - If omitted, the support affordance is hidden entirely
 
 ## Available Scripts
 - `npm run dev` — start the local Vite development server
@@ -69,6 +73,7 @@ The frontend now treats uploads as a growing recipe library.
 - The default home view shows all uploaded collections
 - Users can narrow source scope using the collection selector
 - Recipe cards show which collection they came from
+- An optional hero-level `Support development` link can point to a shared support page if `VITE_SUPPORT_URL` is configured
 
 ### Filtering model
 The current macro guardrails are:

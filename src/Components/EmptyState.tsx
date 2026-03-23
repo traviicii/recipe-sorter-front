@@ -6,22 +6,22 @@ const copy = {
     'no-file': {
         eyebrow: 'Ready when you are',
         title: 'Upload a PDF collection to start sorting recipes by macros.',
-        description: 'The main flow is intentionally tight: analyze the collection, watch parsing progress, then filter the resulting cards by protein, calories, fat, fiber, and prep time.',
+        description: 'Once it is analyzed, you can scan your recipes, compare macros at a glance, and quickly find meals that fit your current goals.',
     },
     parsing: {
         eyebrow: 'Working',
-        title: 'Recipe cards will appear here as macro parsing finishes.',
-        description: 'This view updates while the parser reads pages, segments recipes, and fills in macro fields.',
+        title: 'Recipe cards will start appearing here as your collection is processed.',
+        description: 'We are reading the PDF, separating the recipes, and pulling in the macro details for each one.',
     },
     'no-match': {
         eyebrow: 'No matches',
-        title: 'Nothing fits the current macro guardrails.',
-        description: 'Try loosening one of the limits or turn on incomplete data to keep partial cards in the grid.',
+        title: 'Nothing matches your current filters.',
+        description: 'Try loosening a filter or turn on incomplete data to keep partially parsed recipes in view.',
     },
     failed: {
         eyebrow: 'Parse failed',
-        title: 'No usable recipes were recovered from this collection.',
-        description: 'Try re-uploading the file or adjusting the source PDF if it is especially low quality.',
+        title: 'We could not recover usable recipes from this collection.',
+        description: 'Try uploading it again, or use a cleaner PDF if this one is especially low quality or image-based.',
     },
 };
 
